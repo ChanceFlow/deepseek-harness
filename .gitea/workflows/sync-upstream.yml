@@ -1,0 +1,44 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    # 每 6 小时自动同步一次
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone fork
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "http://x-access-token:${TOKEN}@gitea:3000/Chance/deepseek-harness.git" repo
+          cd repo
+          git remote add upstream http://gitea:3000/GithubMirror/deepseek-harness.git
+          git fetch upstream master
+
+      - name: Merge upstream
+        run: |
+          set -euo pipefail
+          cd repo
+          git config user.name "Chance"
+          git config user.email "175793383+ChanceFlow@users.noreply.github.com"
+          git merge --no-edit upstream/master
+
+      - name: Push back to fork
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd repo
+          git push "http://x-access-token:${TOKEN}@gitea:3000/Chance/deepseek-harness.git" master
+
+      - name: Report merge conflict
+        if: ${{ failure() }}
+        run: echo "::error::Upstream sync failed. Resolve the merge conflict manually."
