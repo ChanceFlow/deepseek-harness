@@ -81,6 +81,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   const [route, setRoute] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [baseURL, setBaseURL] = useState('')
+  const [proxy, setProxy] = useState('')
   const [protocol, setProtocol] = useState(protocols[0] ?? '')
   const [keyDraft, setKeyDraft] = useState('')
   const [models, setModels] = useState<readonly ModelDraft[]>([])
@@ -142,6 +143,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         ...storesKey ? { apiKeyEnv: keyRef } : {},
         api: protocol,
         baseURL,
+        ...proxy.length === 0 ? {} : { proxy },
         models: models.map(model => ({ ...model })),
       }
       const response = await api.settings.mutate({
@@ -244,6 +246,18 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         >
           {protocols.map(choice => <option key={choice} value={choice}>{choice}</option>)}
         </select>
+      </div>
+      <div className={styles['field']}>
+        <span className={styles['fieldLabel']}>{t('proxy')}</span>
+        <input
+          className={styles['input']}
+          type="text"
+          value={proxy}
+          placeholder={t('proxyPlaceholder')}
+          aria-label={t('proxy')}
+          disabled={profileDisabled}
+          onChange={(event) => { setProxy(event.target.value) }}
+        />
       </div>
       <div className={styles['field']}>
         <span className={styles['fieldLabel']}>{t('keyInput')}</span>

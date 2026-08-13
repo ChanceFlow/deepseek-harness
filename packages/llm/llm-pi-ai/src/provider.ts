@@ -21,6 +21,7 @@
 
 import { createProvider } from '@earendil-works/pi-ai'
 import type { Api, ApiKeyAuth, Model, Provider, ProviderStreams } from '@earendil-works/pi-ai'
+import { ProxyAgent } from 'undici'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy'
@@ -63,6 +64,34 @@ export function supportedProtocols(): readonly string[] {
 }
 
 /**
+ * Attach a proxy-bound `fetch` to each model of a route that configures one.
+ * pi-ai's Model type does not declare `fetch`; the Anthropic Messages adapter
+ * reads it at client construction (see the pi-ai patch).
+ * @param models - the route's materialized models.
+ * @param proxy - optional HTTP(S) proxy URL.
+ * @returns the same models array with `fetch` attached, when a proxy is set.
+ */
+function attachProxyFetch(models: readonly Model<Api>[], proxy: string | undefined): readonly Model<Api>[] {
+  if (proxy === undefined) return models
+  const fetch = proxyFetch(proxy)
+  return models.map(model => ({ ...model, fetch }))
+}
+
+/**
+ * Build a `fetch` that routes every request through an HTTP(S) proxy, for the
+ * pi-ai patch that lets an Anthropic Messages model carry its own fetch
+ * (`@anthropic-ai/sdk` otherwise ignores HTTP(S)_PROXY env vars). Only the
+ * Anthropic protocol honours `model.fetch` today; the OpenAI-compatible APIs
+ * resolve proxies from the environment themselves.
+ * @param proxy - the proxy URL (e.g. `http://<proxy-legacy-host>:7890`).
+ * @returns a fetch function bound to a per-call undici ProxyAgent.
+ */
+function proxyFetch(proxy: string): typeof fetch {
+  const agent = new ProxyAgent(proxy)
+  return (url, init) => fetch(url, { ...init, dispatcher: agent } as RequestInit & { dispatcher?: unknown })
+}
+
+/**
  * Api-key auth for a route the harness authenticates itself. `Models` calls
  * this after the adapter has already resolved the route's credential, so a
  * missing key here is not this layer's failure: a named-but-unresolvable
@@ -94,6 +123,8 @@ export interface ProviderSpec {
   api?: string
   /** Endpoint override already applied to {@link models}; kept for provider-level display. */
   baseURL?: string
+  /** HTTP(S) proxy URL for this route's outbound requests; see config `proxy`. */
+  proxy?: string
   /** The route's materialized models, in configuration order. */
   models: readonly Model<Api>[]
   /**
@@ -145,12 +176,13 @@ function reuseCatalogProvider(base: Provider, spec: ProviderSpec): Provider {
   // Provider-level `baseUrl` is display metadata: pi-ai routes every request
   // through `Model.baseUrl`, which model resolution has already overridden.
   const baseUrl = spec.baseURL ?? base.baseUrl
+  const models = attachProxyFetch(spec.models, spec.proxy)
   return {
     id: spec.provider,
     name: spec.displayName,
     ...baseUrl === undefined ? {} : { baseUrl },
     auth: routeAuth(spec, base),
-    getModels: () => spec.models,
+    getModels: () => models,
     // Delegated rather than copied: the catalog provider stays the receiver, so
     // an implementation holding state on itself keeps working.
     stream: (model, context, options) => base.stream(model, context, options),
@@ -171,6 +203,8 @@ export function buildProvider(spec: ProviderSpec): Provider {
   // different wire format, which only the protocol table can serve.
   if (catalog !== undefined && spec.api === undefined) return reuseCatalogProvider(catalog, spec)
 
+  const models = attachProxyFetch(spec.models, spec.proxy)
+
   // Every model on this path carries the route's protocol: model resolution
   // requires one for a route the catalog cannot default, and an explicit one
   // replaces each catalog model's own. So the route has a single API.
@@ -186,7 +220,7 @@ export function buildProvider(spec: ProviderSpec): Provider {
     name: spec.displayName,
     ...spec.baseURL === undefined ? {} : { baseUrl: spec.baseURL },
     auth: routeAuth(spec, catalog),
-    models: spec.models,
+    models,
     api: factory(),
   })
 }

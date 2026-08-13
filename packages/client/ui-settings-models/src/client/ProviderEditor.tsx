@@ -422,6 +422,24 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                 }}
               />
             </div>
+            {family === 'pi-ai'
+              ? (
+                <div className={styles['field']}>
+                  <span className={styles['fieldLabel']}>{t('proxy')}</span>
+                  <input
+                    className={styles['input']}
+                    type="text"
+                    value={stringAt(draft, 'proxy') ?? ''}
+                    placeholder={t('proxyPlaceholder')}
+                    aria-label={t('proxy')}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      setField('proxy', event.target.value === '' ? undefined : event.target.value)
+                    }}
+                  />
+                </div>
+              )
+              : null}
             {/* The protocol sits beside the endpoint it describes, as it does
                 on the create card. */}
             {ownsIdentity
