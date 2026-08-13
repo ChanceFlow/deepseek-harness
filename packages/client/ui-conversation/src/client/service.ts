@@ -58,11 +58,24 @@ export interface IConversation {
   loadOlder(): Promise<void>
 }
 
+/**
+ * Browser-only UUID v4 that works outside a secure context. `crypto.randomUUID`
+ * is only available on https:// or localhost; over plain http:// on a LAN IP it
+ * is undefined, so fall back to a local RFC4122-ish generator.
+ */
+function browserUuid(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+  })
+}
+
 /** Create one browser-only draft descriptor; only its id enters input state. */
 function browserDraftAttachment(file: File): ComposerAttachment {
   return {
     kind: 'image',
-    id: crypto.randomUUID() as DraftAttachmentId,
+    id: browserUuid() as DraftAttachmentId,
     previewUrl: URL.createObjectURL(file),
     file,
   }
