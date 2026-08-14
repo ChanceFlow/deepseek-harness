@@ -171,6 +171,21 @@ export function freezeMessage<T extends Message>(message: T): T {
 }
 
 /**
+ * Generate an RFC 4122 version 4 UUID without a secure context.
+ * `crypto.randomUUID` is undefined on plain http:// over a LAN IP (non-secure
+ * context) in browsers, while `crypto.getRandomValues` is available there and
+ * in Node — so this works on both ends (host + browser bundle).
+ */
+function randomUuid(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  view.setUint8(6, (view.getUint8(6) & 0x0f) | 0x40)
+  view.setUint8(8, (view.getUint8(8) & 0x3f) | 0x80)
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+/**
  * Create one identified message and freeze it before publication.
  * @param input - complete role, content, and source for a new message.
  * @returns an immutable message with a fresh stable identity.
@@ -180,7 +195,7 @@ export function createMessage<T extends NewMessage>(
 ): T & Pick<Message, 'id'> {
   return freezeMessage({
     ...input,
-    id: MessageId(crypto.randomUUID()),
+    id: MessageId(randomUuid()),
   })
 }
 
