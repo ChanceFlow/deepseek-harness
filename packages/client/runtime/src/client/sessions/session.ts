@@ -634,8 +634,12 @@ export class Session implements SessionFace {
       this.openState = 'open'
     } catch (error) {
       if (generation !== this.openGeneration) return
-      this.openState = 'error'
       const folded = transportError<never>(error)
+      // A cancelled transport (aborted fetch) is a normal connection lifecycle
+      // event, not a load error. Keep the session in 'loading' so resync retries
+      // without showing a transient error to the user.
+      if (!folded.ok && folded.error.code === 'cancelled') return
+      this.openState = 'error'
       /* v8 ignore next -- the `? null` arm is unreachable: transportError always returns ok:false. */
       this.openError = folded.ok ? null : folded.error
     } finally {

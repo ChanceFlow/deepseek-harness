@@ -117,12 +117,18 @@ export type RpcResult<T> = { ok: true; value: T } | { ok: false; error: RpcError
 
 /**
  * Fold a transport exception into the RpcResult error branch (unified error
- * API; 'internal' as the catch-all code). Lives with RpcResult so every
- * carrier consumer folds the same way.
+ * API; 'internal' as the catch-all code, AbortError → 'cancelled'). Lives
+ * with RpcResult so every carrier consumer folds the same way.
  * @param error - the thrown value from the carrier.
  * @returns the error branch of an RpcResult.
  */
 export function transportError<T>(error: unknown): RpcResult<T> {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return {
+      ok: false,
+      error: { code: 'cancelled', message: error.message, details: {} },
+    }
+  }
   return {
     ok: false,
     error: { code: 'internal', message: error instanceof Error ? error.message : String(error), details: {} },
