@@ -14,6 +14,7 @@
 | [D4](#d4-pi-ai-0842-chance0-钉版与-084-适配) | llm-pi-ai | pi-ai 用私服补丁构建并精确钉版，适配 0.84 类型面 | `108dec0913` `528823ee39` `45ba30bf52` |
 | [D5](#d5-fork-发版体系) | 全仓库 | `-chance.N` 版本号、Gitea 私服发布、lockfile 对齐策略 | `108dec0913` `45ba30bf52` `74009195aa` `ef6daef5b8` |
 | [D6](#d6-upstream-自动同步-workflow) | Gitea | 每 6 小时自动 merge upstream，冲突即显式失败 | `496c1d4bfc` |
+| [D7](#d7-本地-cicd-流水线) | Gitea Actions | check/release/生产部署/host 冒烟四条流水线 | `a829ceacaf` 起 |
 
 ## D1: LAN 非安全上下文兼容
 
@@ -62,3 +63,11 @@
 提交：`496c1d4bfc`。
 文件：`.gitea/workflows/sync-upstream.yml`。
 同步注意：本文件与该 workflow 互补——人工解决冲突后按本登记簿核对各差异条目仍然成立。
+
+## D7: 本地 CI/CD 流水线
+
+行为：四条 Gitea Actions 流水线。`check.yml`（master push/PR：typecheck + llm-pi-ai/client-connection 套件 + registry 探针）；`release.yml`（tag `dsh-v*`：构建→打包→发布全家族→latest dist-tag→自动重部署 staging :3081，不碰生产）；`deploy.yml`（`git push origin master:deploy-prod` 即手动生产部署按钮，装 latest 并重启 :3080）；`host-smoke.yml`（`git push origin master:ci-host-smoke` 冒烟 host runner）。
+目的：发版与检查全自动；生产部署保留人工门。
+运行环境：容器 runner（act_runner 容器，`ubuntu-latest` 标签，job 容器 `node:22-bookworm` + 禁 IPv6 + pnpm store 卷 `~/.cache/ci-pnpm`）+ host runner（`dsh-host` 标签，systemd user 单元 `act-runner-host`，做部署类 job）。job 内 `.npmrc` 现场生成（只含 scope 路由 + token）——宿主 `~/.npmrc` 的 `proxy=http://localhost:7890/` 在容器内指向容器自身，绝不能整文件挂载；runner 配置的 `envs:` 会覆盖 workflow env，故代理类变量全部由 workflow 自管。
+提交：`a829ceacaf` 起的 `.gitea/workflows/` 系列。
+同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。
