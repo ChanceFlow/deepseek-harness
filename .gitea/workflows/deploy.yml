@@ -1,0 +1,24 @@
+# Manual production deploy (:3080). Triggered by hand from the Gitea UI —
+# never automatic. Default input installs the registry's `latest` dist-tag.
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'dsh version to install (e.g. 0.1.0-rc.7-chance.0; default: latest)'
+        required: false
+        default: 'latest'
+
+jobs:
+  deploy:
+    runs-on: dsh-host
+    env:
+      VERSION: ${{ gitea.event.inputs.version }}
+    steps:
+      - name: Install globally and restart the production service
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
+          npm install -g "@deepseek-ai/dsh@${VERSION:-latest}"
+          systemctl --user restart dsh
+          systemctl --user is-active dsh

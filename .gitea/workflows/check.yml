@@ -1,0 +1,31 @@
+# Fork CI: typecheck + the suites that own the fork's behavioral deltas.
+# Container runner (docker jobs); pnpm store persists on a host volume.
+name: Check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-bookworm
+      volumes:
+        - /home/<user>/.cache/ci-pnpm:/ci/pnpm
+        - /home/<user>/.npmrc:/root/.npmrc:ro
+    env:
+      npm_config_store_dir: /ci/pnpm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable pnpm (pinned by packageManager)
+        run: corepack enable && corepack prepare pnpm@11.7.0 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Probe the fork npm registry wiring (scope routing + auth)
+        run: npm dist-tag ls @deepseek-ai/dsh
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Fork-delta suites (llm-pi-ai, client-connection)
+        run: pnpm exec vitest run packages/llm/llm-pi-ai/ packages/client/connection/

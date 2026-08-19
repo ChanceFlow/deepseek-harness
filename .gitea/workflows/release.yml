@@ -1,0 +1,58 @@
+# Fork release: tag dsh-v* triggers build -> pack -> publish to the Gitea npm
+# registry -> latest dist-tag, then auto-deploys staging (:3081, source
+# checkout). Production (:3080) is NOT touched here — use deploy.yml manually.
+name: Release
+
+on:
+  push:
+    tags: ['dsh-v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-bookworm
+      volumes:
+        - /home/<user>/.cache/ci-pnpm:/ci/pnpm
+        - /home/<user>/.npmrc:/root/.npmrc:ro
+    env:
+      npm_config_store_dir: /ci/pnpm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable pnpm (pinned by packageManager)
+        run: corepack enable && corepack prepare pnpm@11.7.0 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build the family
+        run: pnpm run build
+      - name: Build the web frontend
+        run: pnpm run build:web
+      - name: Verify the release set
+        run: pnpm exec tsx scripts/release/verify.ts --family dsh
+      - name: Pack
+        run: pnpm exec tsx scripts/release/pack.ts --family dsh --out dist/npm-release
+      - name: Publish to the fork registry
+        run: pnpm exec tsx scripts/release/publish.ts --family dsh --from dist/npm-release
+      - name: Point the latest dist-tag at every member
+        run: |
+          version=$(grep -m1 '"version"' package.json | sed -E 's/.*"version": "([^"]+)".*/\1/')
+          ls dist/npm-release/*.tgz \
+            | sed -E "s|.*/deepseek-ai-(.*)-${version}\.tgz\$|@deepseek-ai/\1|" \
+            | while read -r pkg; do npm dist-tag add "$pkg@${version}" latest; done
+
+  deploy-staging:
+    needs: release
+    runs-on: dsh-host
+    env:
+      TAG: ${{ gitea.ref_name }}
+    steps:
+      - name: Checkout the released tag and restart staging
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
+          cd /home/<user>/Projects/deepseek-harness
+          git fetch origin --tags --prune
+          git checkout --force "refs/tags/$TAG"
+          pnpm install --frozen-lockfile
+          pnpm run build:web
+          systemctl --user restart dsh-staging
+          systemctl --user is-active dsh-staging
