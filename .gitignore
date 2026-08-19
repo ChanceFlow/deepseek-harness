@@ -42,3 +42,7 @@ worktrees/
 # Local install helper: maps @earendil-works to the public mirror for this
 # checkout (the lockfile pins a version the local Gitea npm mirror lacks).
 .npmrc
+
+# Fork release staging: packed tarballs from the local registry publish flow.
+/dist/
+/apps/cli/dist/
