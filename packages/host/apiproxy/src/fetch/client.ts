@@ -296,9 +296,10 @@ export abstract class AbstractApiClient implements IApiClient {
   }
 
   protected mintRpcId(): RpcId {
-    // getRandomValues is a Web API available on insecure origins too (unlike
-    // crypto.randomUUID), so every browser RPC call works over plain http://
-    // LAN IPs as well as https:// and Node.
+    // crypto.randomUUID serves every environment that has it (Node, https://,
+    // localhost); getRandomValues is also available on insecure origins
+    // (plain http:// over a LAN IP in browsers), so it builds the id there.
+    if (typeof crypto.randomUUID === 'function') return RpcId(crypto.randomUUID())
     const bytes = crypto.getRandomValues(new Uint8Array(16))
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
     view.setUint8(6, (view.getUint8(6) & 0x0f) | 0x40)

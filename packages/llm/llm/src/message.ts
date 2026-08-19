@@ -171,12 +171,13 @@ export function freezeMessage<T extends Message>(message: T): T {
 }
 
 /**
- * Generate an RFC 4122 version 4 UUID without a secure context.
- * `crypto.randomUUID` is undefined on plain http:// over a LAN IP (non-secure
- * context) in browsers, while `crypto.getRandomValues` is available there and
- * in Node — so this works on both ends (host + browser bundle).
+ * Generate an RFC 4122 version 4 UUID without requiring a secure context.
+ * `crypto.randomUUID` serves every environment that has it (Node, https://,
+ * localhost); `crypto.getRandomValues` is also available on insecure origins
+ * (plain http:// over a LAN IP in browsers), so it builds the UUID there.
  */
 function randomUuid(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   const bytes = crypto.getRandomValues(new Uint8Array(16))
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   view.setUint8(6, (view.getUint8(6) & 0x0f) | 0x40)
