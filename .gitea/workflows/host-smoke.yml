@@ -1,9 +1,11 @@
 # Read-only smoke for the dsh-host runner: proves host jobs can reach the
 # repo checkout, pnpm, and the user systemd units without changing anything.
+# Trigger: git push origin master:ci-host-smoke (or any push to that branch).
 name: Host runner smoke
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ci-host-smoke]
 
 jobs:
   smoke:
