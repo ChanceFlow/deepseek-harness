@@ -1,0 +1,64 @@
+# DIFF.md — fork 与 upstream 的差异登记簿
+
+本文件只存在于 fork（upstream 没有它，因此永不产生合并冲突），登记本仓库相对 `upstream/master`（`GithubMirror/deepseek-harness`）的全部行为差异：每条差异写明行为、目的、涉及提交与同步注意事项。
+维护规则：增删 fork 差异的同一个变更里更新本文件；每次合并 upstream 后核对一遍。
+核对命令：`git log --no-merges --format='%h %s' upstream/master..master` —— 输出的每个非合并提交都必须能映射到下表某一条；反过来表中提交如已被 upstream 收编，删除对应条目。
+
+## 总览
+
+| 编号 | 领域 | 一句话 | 关键提交 |
+|---|---|---|---|
+| [D1](#d1-lan-非安全上下文兼容) | client / apiproxy / llm | 让浏览器经 LAN IP 的 `http://` 访问成为一等公民 | `7e2a93c9c5` `1d03929344` `6c7840ab13` `54b4d5fbf5` `74009195aa` |
+| [D2](#d2-特权方法不再限定-loopback) | client-connection | settings/credentials/agentPreset 方法跟随 trusted-host 栅栏而非限死 loopback | `3671721245` `1f638eaa0c` |
+| [D3](#d3-per-provider-proxy-与任意-web-host) | llm-pi-ai / web | 每条 provider 路由可选 HTTP(S) 代理；`dsh web` 接受任意 `--host` | `6eafb8e59a` `1f638eaa0c` `8731a9fa42` |
+| [D4](#d4-pi-ai-0842-chance0-钉版与-084-适配) | llm-pi-ai | pi-ai 用私服补丁构建并精确钉版，适配 0.84 类型面 | `108dec0913` `528823ee39` `45ba30bf52` |
+| [D5](#d5-fork-发版体系) | 全仓库 | `-chance.N` 版本号、Gitea 私服发布、lockfile 对齐策略 | `108dec0913` `45ba30bf52` `74009195aa` `ef6daef5b8` |
+| [D6](#d6-upstream-自动同步-workflow) | Gitea | 每 6 小时自动 merge upstream，冲突即显式失败 | `496c1d4bfc` |
+
+## D1: LAN 非安全上下文兼容
+
+行为：浏览器通过 `http://<LAN-IP>:308x` 访问时（非安全上下文，`crypto.randomUUID` 不存在）一切功能可用：附件 uuid 走本地 UUIDv4 回退；RPC id 与消息 id 优先 `randomUUID`、缺失时由 `getRandomValues` 构造；被用户取消的请求映射为 `cancelled` 错误码并在历史加载时跳过，不再以红色错误刷屏。
+目的：本部署就是 LAN IP + http，不引入 TLS。
+提交：`7e2a93c9c5`（browserUuid 回退）、`1d03929344` + `6c7840ab13`（UUID：randomUUID 优先，getRandomValues 兜底——后者修复了绕开 schedule 测试 mock 的回归）、`54b4d5fbf5`（AbortError→cancelled）。
+文件：`packages/client/ui-conversation/src/client/service.ts`、`packages/host/apiproxy/src/fetch/client.ts`、`packages/llm/llm/src/message.ts`、`packages/client/runtime/src/client/sessions/session.ts`、`packages/host/apiproxy/src/api/rpc.ts`。
+同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。
+
+## D2: 特权方法不再限定 loopback
+
+行为：`settings.*` / `credentials.*` / `agentPreset.*` RPC 方法不再强制 loopback，改与其他方法一致跟随 `--trusted-host` 栅栏（DNS-rebinding 防御保留）；不可达方法现在答 404 而非 403。
+目的：部署在可信 LAN，配置面需要从 LAN 客户端直接可达。
+提交：`3671721245`（实现）、`1f638eaa0c`（404 断言测试）。
+文件：`packages/client/connection/src/index.ts`、`packages/client/connection/tests/node-half.host.spec.ts`。
+同步注意：upstream 未改 `connection/src/index.ts` 时不冲突；若 upstream 重构特权方法表，按"跟随 trusted-host"的语义重放。
+
+## D3: per-provider proxy 与任意 web host
+
+行为：`llm-pi-ai` 的 provider 路由新增 `proxy` 字段（如 `http://<proxy-legacy-host>:7890`），设置后该路由每个模型的出站请求经 undici `ProxyAgent` 代理——含 Anthropic Messages 协议（依赖 D4 私服构建的 `model.fetch` 透传）；`dsh web` 接受任意 `--host`（含 `0.0.0.0`）。
+目的：`claude.p1.cn` 等端点必须经 LAN clash 代理才可达；服务绑定 LAN。
+提交：`6eafb8e59a`（实现）、`1f638eaa0c`（表单断言测试）、`8731a9fa42`（config-catalog 入册）。
+文件：`packages/llm/llm-pi-ai/src/{provider,config}.ts`、`packages/client/ui-settings-models/src/client/{CustomProviderCard,ProviderEditor}.tsx`、`packages/bundle/web-app/src/startup.ts`、`apps/cli`。
+同步注意：`proxy` 是 fork 私有配置面；upstream 若引入同名能力以 upstream 为准并重新评估 D4 的 model.fetch 依赖。
+
+## D4: pi-ai 0.84.2-chance.0 钉版与 0.84 适配
+
+行为：`@earendil-works/pi-ai` 精确钉版私服构建 `0.84.2-chance.0`（原版 0.84.2 + Anthropic 适配器一行 `model.fetch` 透传）；适配层归类 `baseten` 为 withheld thinking 格式、映射新 `StopReason`（`pending`→TRANSPORT、`deferred`→不支持）、signal 已 abort 时终态 error 重分类为 aborted。
+目的：0.84 修复了 Anthropic 网关在 `content_block_start` 携带完整 thinking 块时内容/签名被清零的 bug（p1 路由必需）；钉版防止 `^` 范围解析到同私服上无补丁的原版镜像。
+提交：`108dec0913`（钉版+发版）、`528823ee39`（0.84 适配）、`45ba30bf52`（lockfile 策略）。
+文件：`packages/llm/llm-pi-ai/src/{catalog,stream,adapter}.ts`、`packages/llm/llm-pi-ai/package.json`。
+同步注意：upstream 仍用 `^0.82.1`——每次合并后 lockfile 以 upstream 为基底重建，再重放钉版（见 D5）；upstream 升 0.84 时适配提交变无操作，届时删除本条并入 upstream。
+
+## D5: fork 发版体系
+
+行为：全家族以 `<upstream 版本>-chance.N` 发布到本地 Gitea 私服（`http://<gitea-legacy-host>:3000/api/packages/Chance/npm/`，由 gitignore 的本地 `.npmrc` 指向）；发版时的版本 bump 与 lockfile 同时提交；lockfile 策略为"以 upstream 解析为基底 + fork 增量（pi-ai 钉版、undici）"，避免 dev 依赖漂移；`/dist/`、`/apps/cli/dist/` 为发版 staging 产物，已 gitignore。
+目的：内网部署不经公共 npm；fork 版本与 upstream 公开发版同库共存不冲突。
+提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）。
+细节：[fork registry 与 pi-ai chance 构建](.agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md)。
+同步注意：版本号冲突（222 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）。
+
+## D6: upstream 自动同步 workflow
+
+行为：Gitea 每 6 小时把 `upstream/master` merge 进 fork 的 `master` 并推送；冲突即失败并要求人工解决。
+目的：无人值守跟进 upstream；冲突显式可见而非静默漂移。
+提交：`496c1d4bfc`。
+文件：`.gitea/workflows/sync-upstream.yml`。
+同步注意：本文件与该 workflow 互补——人工解决冲突后按本登记簿核对各差异条目仍然成立。
