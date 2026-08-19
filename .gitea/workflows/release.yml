@@ -19,7 +19,7 @@ jobs:
       npm_config_store_dir: /ci/pnpm
       HTTP_PROXY: http://<proxy-legacy-host>:7890
       HTTPS_PROXY: http://<proxy-legacy-host>:7890
-      NO_PROXY: localhost,127.0.0.1,::1,<gitea-legacy-host>
+      NO_PROXY: localhost,127.0.0.1,::1,<gitea-legacy-host>,registry.npmmirror.com
     steps:
       - uses: actions/checkout@v4
       - name: Enable pnpm (pinned by packageManager)
