@@ -1,7 +1,9 @@
 # Fork CI: typecheck + the suites that own the fork's behavioral deltas.
 # Container runner (docker jobs); pnpm store persists on a host volume.
-# No proxy: every registry the lockfile touches (npmmirror, the Gitea npm
-# registry on <gitea-legacy-host>) is reached directly; clash rejects npmmirror.
+# Registries are reached directly: npmmirror (lockfile URLs) and the Gitea
+# npm registry on <gitea-legacy-host>. The host ~/.npmrc is NOT mounted as-is — its
+# localhost:7890 proxy is unreachable inside job containers — only its
+# _authToken is reused, via the generated /root/.npmrc.
 name: Check
 
 on:
@@ -17,20 +19,22 @@ jobs:
       options: --sysctl net.ipv6.conf.all.disable_ipv6=1
       volumes:
         - /home/<user>/.cache/ci-pnpm:/ci/pnpm
-        - /home/<user>/.npmrc:/root/.npmrc:ro
+        - /home/<user>/.npmrc:/ci/secret-npmrc:ro
     env:
       npm_config_store_dir: /ci/pnpm
       COREPACK_NPM_REGISTRY: https://registry.npmmirror.com
-      # The mounted ~/.npmrc proxies via localhost:7890, which inside a job
-      # container is the container itself; empty overrides disable it.
-      npm_config_proxy: ''
-      npm_config_https_proxy: ''
-      # npmmirror publishes AAAA records the job bridge cannot route; force v4.
-      NODE_OPTIONS: --dns-result-order=ipv4first
     steps:
       - uses: actions/checkout@v4
       - name: Enable pnpm (pinned by packageManager)
         run: corepack enable && corepack prepare pnpm@11.7.0 --activate
+      - name: Generate a direct-routing .npmrc
+        run: |
+          {
+            echo 'registry=https://registry.npmmirror.com'
+            echo '@deepseek-ai:registry=http://<gitea-legacy-host>:3000/api/packages/Chance/npm/'
+            echo '@earendil-works:registry=http://<gitea-legacy-host>:3000/api/packages/Chance/npm/'
+            grep _authToken /ci/secret-npmrc
+          } > /root/.npmrc
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --reporter=append-only 2>&1 | tee /ci/pnpm/install.log
       - name: Probe the fork npm registry wiring (scope routing + auth)
