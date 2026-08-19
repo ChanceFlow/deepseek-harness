@@ -12,6 +12,12 @@ describe('transportError', () => {
     expect(transportError(new Error('线断了'))).toEqual({ ok: false, error: { code: 'internal', message: '线断了', details: {} } })
     expect(transportError('raw string')).toMatchObject({ ok: false, error: { message: 'raw string' } })
   })
+
+  it('maps AbortError to cancelled', () => {
+    const aborted = new Error('aborted')
+    aborted.name = 'AbortError'
+    expect(transportError(aborted)).toEqual({ ok: false, error: { code: 'cancelled', message: 'aborted', details: {} } })
+  })
 })
 
 describe('resultOf', () => {

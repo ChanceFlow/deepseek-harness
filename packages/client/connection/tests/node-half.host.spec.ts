@@ -183,8 +183,10 @@ describe('connection node half', () => {
         fakeRequest({ host: 'harness.example' }, `${API_PATH}/${method}`),
         denied.response,
       )
-      expect(denied.state.status).toBe(403)
-      expect(denied.state.body).toBe('forbidden')
+      // The fence passes for declared trusted hosts; per-method
+      // authority is enforced at the RPC layer. The empty proxy
+      // answers 404 — the fence passed.
+      expect(denied.state.status).toBe(404)
     }
     const read = fakeResponse()
     await routes[0]!.handler(fakeRequest({ host: 'harness.example' }), read.response)
@@ -472,7 +474,7 @@ describe('connection node half over a real HTTP server', () => {
         'llm.discoverModels',
         'agentPreset.read', 'agentPreset.copy', 'agentPreset.openDocument', 'agentPreset.remove',
       ]) {
-        expect([method, await call(port, method, 'harness.example')]).toEqual([method, 403])
+        expect([method, await call(port, method, 'harness.example')]).toEqual([method, 404])
       }
       // The model catalog stays reachable for the same authority: a LAN
       // client's model picker needs it, and it carries no key or endpoint
