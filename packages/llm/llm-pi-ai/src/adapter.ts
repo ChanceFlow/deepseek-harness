@@ -339,7 +339,17 @@ export class PiAiAdapter extends LlmAdapter {
             exhausted = true
             return
           }
-          yield result.value
+          // A pi-ai abort during lazy setup (auth resolution) arrives as a
+          // terminal error event, while the same abort mid-stream is classified
+          // `aborted` by pi-ai's api modules; the caller's aborted signal wins
+          // either way.
+          const chunk = result.value
+          yield chunk.type === 'finish' && chunk.reason.kind === 'error' && options.signal?.aborted
+            ? {
+              ...chunk,
+              reason: { kind: 'aborted', failure: { ...chunk.reason.failure, code: 'ABORTED' } },
+            }
+            : chunk
         }
       } finally {
         if (!exhausted) {

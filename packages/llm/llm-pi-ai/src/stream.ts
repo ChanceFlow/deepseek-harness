@@ -68,7 +68,8 @@ function classifyPiAiError(message: string): string {
  * @returns the mapped harness reason. Recognized error text, `stop` usage above
  *   `contextWindow`, and zero-output `length` usage that fills the window map
  *   to `CONTEXT_WINDOW_EXCEEDED`; a `stop` with no content blocks maps to an
- *   `EMPTY_RESPONSE` error.
+ *   `EMPTY_RESPONSE` error. A still-`pending` terminal maps to a `TRANSPORT`
+ *   error; a `deferred` terminal maps to an unsupported-completion error.
  */
 export function mapStopReason(message: AssistantMessage, contextWindow?: number): FinishReason {
   const piAiOverflow = isContextOverflow(message, contextWindow)
@@ -109,6 +110,18 @@ export function mapStopReason(message: AssistantMessage, contextWindow?: number)
       const text = message.errorMessage ?? 'pi-ai stream error'
       return { kind: 'error', failure: { message: text, code: classifyPiAiError(text) } }
     }
+    case 'pending':
+      // The stream ended before a terminal stop reason: transport truncation.
+      return {
+        kind: 'error',
+        failure: { message: `pi-ai stream for model "${message.model}" ended without a stop reason`, code: 'TRANSPORT' },
+      }
+    case 'deferred':
+      // pi-ai's deferred completion carries a polling handle this adapter never fetches.
+      return {
+        kind: 'error',
+        failure: { message: `model "${message.model}" stopped as a deferred handle, which this adapter does not fetch`, code: 'PI_AI_ERROR' },
+      }
   }
 }
 

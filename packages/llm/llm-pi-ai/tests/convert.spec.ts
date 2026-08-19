@@ -740,6 +740,26 @@ describe('mapStopReason / mapUsage', () => {
     })
   })
 
+  it('maps a stream that never reached a stop reason to a TRANSPORT error', () => {
+    expect(mapStopReason(assistant({ stopReason: 'pending', content: [{ type: 'text', text: 'ok' }] }))).toEqual({
+      kind: 'error',
+      failure: {
+        message: 'pi-ai stream for model "deepseek-v4-flash" ended without a stop reason',
+        code: 'TRANSPORT',
+      },
+    })
+  })
+
+  it('maps a deferred completion to an unsupported-completion error', () => {
+    expect(mapStopReason(assistant({ stopReason: 'deferred', content: [{ type: 'text', text: 'ok' }] }))).toEqual({
+      kind: 'error',
+      failure: {
+        message: 'model "deepseek-v4-flash" stopped as a deferred handle, which this adapter does not fetch',
+        code: 'PI_AI_ERROR',
+      },
+    })
+  })
+
   it('keeps a thinking-only stop successful (any block counts as content)', () => {
     expect(mapStopReason(assistant({ stopReason: 'stop', content: [{ type: 'thinking', thinking: 'mull' }] })))
       .toEqual({ kind: 'stop' })
