@@ -25,7 +25,7 @@ jobs:
       - name: Enable pnpm (pinned by packageManager)
         run: corepack enable && corepack prepare pnpm@11.7.0 --activate
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --reporter=append-only 2>&1 | tee /ci/pnpm-install.log
       - name: Probe the fork npm registry wiring (scope routing + auth)
         run: npm dist-tag ls @deepseek-ai/dsh
       - name: Typecheck
