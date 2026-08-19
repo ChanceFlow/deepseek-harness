@@ -21,6 +21,10 @@ jobs:
     env:
       npm_config_store_dir: /ci/pnpm
       COREPACK_NPM_REGISTRY: https://registry.npmmirror.com
+      # The mounted ~/.npmrc proxies via localhost:7890, which inside a job
+      # container is the container itself; empty overrides disable it.
+      npm_config_proxy: ''
+      npm_config_https_proxy: ''
       # npmmirror publishes AAAA records the job bridge cannot route; force v4.
       NODE_OPTIONS: --dns-result-order=ipv4first
     steps:
