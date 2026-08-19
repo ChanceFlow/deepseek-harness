@@ -20,6 +20,8 @@ jobs:
     env:
       npm_config_store_dir: /ci/pnpm
       COREPACK_NPM_REGISTRY: https://registry.npmmirror.com
+      # npmmirror publishes AAAA records the job bridge cannot route; force v4.
+      NODE_OPTIONS: --dns-result-order=ipv4first
     steps:
       - uses: actions/checkout@v4
       - name: Enable pnpm (pinned by packageManager)
