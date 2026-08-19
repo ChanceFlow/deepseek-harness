@@ -1,0 +1,18 @@
+# Read-only smoke for the dsh-host runner: proves host jobs can reach the
+# repo checkout, pnpm, and the user systemd units without changing anything.
+name: Host runner smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: dsh-host
+    steps:
+      - name: Verify host-side capabilities
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
+          echo "user: $(whoami)"
+          git -C /home/<user>/Projects/deepseek-harness rev-parse --short HEAD
+          pnpm --version
+          systemctl --user is-active dsh dsh-staging act-runner-host
