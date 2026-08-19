@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: node:22-bookworm
+      options: --sysctl net.ipv6.conf.all.disable_ipv6=1
       volumes:
         - /home/<user>/.cache/ci-pnpm:/ci/pnpm
         - /home/<user>/.npmrc:/root/.npmrc:ro
