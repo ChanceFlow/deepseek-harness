@@ -70,4 +70,4 @@
 目的：发版与检查全自动；生产部署保留人工门。
 运行环境：容器 runner（act_runner 容器，`ubuntu-latest` 标签，job 容器 `node:22-bookworm` + 禁 IPv6 + pnpm store 卷 `~/.cache/ci-pnpm`）+ host runner（`dsh-host` 标签，systemd user 单元 `act-runner-host`，做部署类 job）。job 内 `.npmrc` 现场生成（只含 scope 路由 + token）——宿主 `~/.npmrc` 的 `proxy=http://localhost:7890/` 在容器内指向容器自身，绝不能整文件挂载；runner 配置的 `envs:` 会覆盖 workflow env，故代理类变量全部由 workflow 自管。
 提交：`a829ceacaf` 起的 `.gitea/workflows/` 系列。
-同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。
+同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。release 的 staging 部署会把本仓库检出到 tag 的 detached HEAD——后续开发先 `git checkout master`。
