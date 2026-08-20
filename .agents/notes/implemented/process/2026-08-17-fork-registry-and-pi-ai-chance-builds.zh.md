@@ -26,7 +26,7 @@ Status: implemented
 
 ### dsh-llm-pi-ai 的 0.84 适配面
 
-`baseten` 归入被保留（withhold）的 thinking 格式（它经 `chatTemplateArgs` 分派，本配置不暴露该字段，与 `chat-template` 系经 `chatTemplateKwargs` 同理）。新的 `StopReason` 成员都有显式映射：`pending` 是传输截断——是[扁平化消息截断分类](../bug-fix/2026-07-22-pi-ai-transport-truncation-classification.md)里的又一种措辞——`deferred` 是不支持完成模式。调用方 signal 已 abort 时，终态 `error` 会被重新归类为 `aborted`：pi-ai 0.84 在鉴权解析里加了 `throwIfAborted()`，惰性 setup 包装器把这个 abort 变成了通用的 setup 错误事件，而同一 abort 发生在流中时 pi-ai 自己仍归类为 `aborted`。0.84 目录给 `deepseek-v4-flash` 增加了 `low` 档，并把 `maxTokensField` 定为 `max_tokens`。
+pi-ai 0.84 独有的 compat 字段（`chatTemplateArgs`、`supportsFinishReason`、`supportsThinkingTokenBudget`、`supportsAdditionalTools`）在上游的 disposition gate 中保持 withhold，直到上游自己的 pi-ai 升级对它们分类；`baseten` 则留在 thinking-format gate 里：上游 rc.8 的双向 profile 字段检查要求 offered 字段与上游联合类型完全一致，退出一个联合成员等于改写上游的安全不变式，而带着未配置的 `chatTemplateArgs` 命名 baseten 是更小的分歧。新的 `StopReason` 成员都有显式映射：`pending` 是传输截断——是[扁平化消息截断分类](../bug-fix/2026-07-22-pi-ai-transport-truncation-classification.md)里的又一种措辞——`deferred` 是不支持完成模式。调用方 signal 已 abort 时，终态 `error` 会被重新归类为 `aborted`：pi-ai 0.84 在鉴权解析里加了 `throwIfAborted()`，惰性 setup 包装器把这个 abort 变成了通用的 setup 错误事件，而同一 abort 发生在流中时 pi-ai 自己仍归类为 `aborted`。0.84 目录给 `deepseek-v4-flash` 增加了 `low` 档，并把 `maxTokensField` 定为 `max_tokens`。
 
 ## 考虑过的替代方案
 

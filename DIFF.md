@@ -42,7 +42,7 @@
 
 ## D4: pi-ai 0.84.2-chance.0 钉版与 0.84 适配
 
-行为：`@earendil-works/pi-ai` 精确钉版私服构建 `0.84.2-chance.0`（原版 0.84.2 + Anthropic 适配器一行 `model.fetch` 透传）；适配层归类 `baseten` 为 withheld thinking 格式、映射新 `StopReason`（`pending`→TRANSPORT、`deferred`→不支持）、signal 已 abort 时终态 error 重分类为 aborted。
+行为：`@earendil-works/pi-ai` 精确钉版私服构建 `0.84.2-chance.0`（原版 0.84.2 + Anthropic 适配器一行 `model.fetch` 透传）；适配层把 0.84 独有 compat 字段（chatTemplateArgs 等 4 个）在上游 disposition gate 中 withhold、`baseten` 进 thinking-format gate（上游双向类型不变式使然）、映射新 `StopReason`（`pending`→TRANSPORT、`deferred`→不支持）、signal 已 abort 时终态 error 重分类为 aborted。
 目的：0.84 修复了 Anthropic 网关在 `content_block_start` 携带完整 thinking 块时内容/签名被清零的 bug（p1 路由必需）；钉版防止 `^` 范围解析到同私服上无补丁的原版镜像。
 提交：`108dec0913`（钉版+发版）、`528823ee39`（0.84 适配）、`45ba30bf52`（lockfile 策略）。
 文件：`packages/llm/llm-pi-ai/src/{catalog,stream,adapter}.ts`、`packages/llm/llm-pi-ai/package.json`。
