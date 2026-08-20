@@ -36,10 +36,8 @@ jobs:
           } > /root/.npmrc
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build the family
-        run: pnpm run build
-      - name: Build the web frontend
-        run: pnpm run build:web
+      - name: Build the family (official client profile)
+        run: pnpm run build:official
       - name: Verify the release set
         run: pnpm exec tsx scripts/release/verify.ts --family dsh
       - name: Pack
