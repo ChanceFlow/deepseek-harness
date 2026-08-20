@@ -85,15 +85,7 @@ const THINKING_LEVEL_GATE: Record<ModelThinkingLevel, true> = {
 export const THINKING_LEVELS = Object.keys(THINKING_LEVEL_GATE) as readonly ModelThinkingLevel[]
 
 /** One reasoning-dispatch wire format a profile may name. */
-export type PiAiThinkingFormat = Exclude<NonNullable<OpenAICompletionsCompat['thinkingFormat']>, WithheldThinkingFormat>
-
-/**
- * pi-ai thinking formats a profile cannot name: the baseten format dispatches
- * through `chatTemplateArgs`, which `PiAiCompatProfile` does not expose (the
- * chat-template variants are nameable because their channel,
- * `chatTemplateKwargs`, is exposed).
- */
-type WithheldThinkingFormat = 'baseten'
+export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFormat']>
 
 /**
  * The nameable reasoning-dispatch formats, most-reached first. The `Record`
@@ -105,6 +97,9 @@ type WithheldThinkingFormat = 'baseten'
  */
 const THINKING_FORMAT_GATE: Record<PiAiThinkingFormat, true> = {
   'openai': true,
+  // pi-ai 0.84 format; dispatches through chatTemplateArgs, which a profile
+  // cannot configure (it sends an empty chat_template_args).
+  'baseten': true,
   'deepseek': true,
   'openrouter': true,
   'together': true,
@@ -262,6 +257,11 @@ const COMPLETIONS_COMPAT_GATE = {
   sendSessionAffinityHeaders: 'withhold',
   deferredToolsMode: 'withhold',
   sessionAffinityFormat: 'withhold',
+  // pi-ai 0.84 fields upstream has not classified yet; withheld until
+  // upstream's own pi-ai bump classifies them.
+  chatTemplateArgs: 'withhold',
+  supportsFinishReason: 'withhold',
+  supportsThinkingTokenBudget: 'withhold',
 } as const satisfies Record<keyof OpenAICompletionsCompat, CompatDisposition>
 
 /** Disposition of every `OpenAIResponsesCompat` field; a drift gate like the one above. */
@@ -273,6 +273,8 @@ const RESPONSES_COMPAT_GATE = {
   supportsOpenAIGrammarTools: 'withhold',
   supportsToolSearch: 'withhold',
   supportsExplicitPromptCacheMode: 'withhold',
+  // pi-ai 0.84 field upstream has not classified yet.
+  supportsAdditionalTools: 'withhold',
 } as const satisfies Record<keyof OpenAIResponsesCompat, CompatDisposition>
 
 /** Disposition of every `AnthropicMessagesCompat` field; a drift gate like the one above. */

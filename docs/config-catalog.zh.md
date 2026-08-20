@@ -1211,15 +1211,7 @@ export type PiAiModality = Model<Api>['input'][number]
 export type PiAiReasoningEfforts = Partial<Record<ModelThinkingLevel, string | null>>
 
 /** One reasoning-dispatch wire format a profile may name. */
-export type PiAiThinkingFormat = Exclude<NonNullable<OpenAICompletionsCompat['thinkingFormat']>, WithheldThinkingFormat>
-
-/**
- * pi-ai thinking formats a profile cannot name: the baseten format dispatches
- * through `chatTemplateArgs`, which `PiAiCompatProfile` does not expose (the
- * chat-template variants are nameable because their channel,
- * `chatTemplateKwargs`, is exposed).
- */
-type WithheldThinkingFormat = 'baseten'
+export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFormat']>
 ```
 
 依赖：`Api`（`@earendil-works/pi-ai`）· `CacheRetention`（`@earendil-works/pi-ai`）· `Model`（`@earendil-works/pi-ai`）· `ModelThinkingLevel`（`@earendil-works/pi-ai`）· `OpenAICompletionsCompat`（`@earendil-works/pi-ai`）· [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets`（`@earendil-works/pi-ai`）· `Transport`（`@earendil-works/pi-ai`)
