@@ -53,7 +53,7 @@
 行为：全家族以 `<upstream 版本>-chance.N` 发布到本地 Gitea 私服（`http://<gitea-legacy-host>:3000/api/packages/Chance/npm/`，由 gitignore 的本地 `.npmrc` 指向）；发版时的版本 bump 与 lockfile 同时提交；lockfile 策略为"以 upstream 解析为基底 + fork 增量（pi-ai 钉版、undici）"，避免 dev 依赖漂移；`/dist/`、`/apps/cli/dist/` 为发版 staging 产物，已 gitignore。
 目的：内网部署不经公共 npm；fork 版本与 upstream 公开发版同库共存不冲突。
 提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）。
-细节：[fork registry 与 pi-ai chance 构建](.agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md)。
+细节：[fork registry 与 pi-ai chance 构建](.agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md)；用户接入与版本鉴别见 [REGISTRY.md](REGISTRY.md)。
 同步注意：版本号冲突（222 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）。
 
 ## D6: upstream 自动同步 workflow
