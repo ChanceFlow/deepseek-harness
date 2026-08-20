@@ -136,11 +136,12 @@ describe('web command-line provider', () => {
 
   it('accepts an all-interfaces host so LAN deployments can serve it', async () => {
     const { values, observed } = await bootProvider(['--host', '0.0.0.0'])
-    expect(values).toEqual({ host: '0.0.0.0', trustedHosts: [] })
+    expect(values).toEqual({ host: '0.0.0.0', trustedHosts: [], openBrowser: true })
     expect(observed.readerConfig).toEqual({
       host: '0.0.0.0',
       port: 3080,
       trustedHosts: [],
+      openBrowser: true,
     })
     expect(observed.exits).toEqual([])
   })
