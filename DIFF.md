@@ -46,7 +46,7 @@
 目的：0.84 修复了 Anthropic 网关在 `content_block_start` 携带完整 thinking 块时内容/签名被清零的 bug（p1 路由必需）；钉版防止 `^` 范围解析到同私服上无补丁的原版镜像。
 提交：`108dec0913`（钉版+发版）、`528823ee39`（0.84 适配）、`45ba30bf52`（lockfile 策略）。
 文件：`packages/llm/llm-pi-ai/src/{catalog,stream,adapter}.ts`、`packages/llm/llm-pi-ai/package.json`。
-同步注意：upstream 仍用 `^0.82.1`——每次合并后 lockfile 以 upstream 为基底重建，再重放钉版（见 D5）；upstream 升 0.84 时适配提交变无操作，届时删除本条并入 upstream。
+同步注意：upstream 仍用 `^0.82.1`——每次合并后 lockfile 以 upstream 为基底重建，再重放钉版（见 D5）；upstream 升 0.84 时适配提交变无操作，届时删除本条并入 upstream。0.1.1-rc.1 合入后新增的 `auth.ts`/`login.ts`（按 0.82.1 类型面编写）已在钉版 0.84.2-chance.0 上通过 typecheck（0.84 的 auth 面是 0.82 的超集）；upstream 若改用 0.84 类型面，重新核对此条。
 
 ## D5: fork 发版体系
 
