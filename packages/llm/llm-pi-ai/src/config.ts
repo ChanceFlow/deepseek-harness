@@ -96,7 +96,7 @@ export interface PiAiProviderProfile {
   baseURL?: string
   /**
    * HTTP(S) proxy URL for this provider's outbound requests (e.g.
-   * `http://<proxy-legacy-host>:7890`). When set, every request this route makes goes
+   * `http://<proxy-host>:7890`). When set, every request this route makes goes
    * through that proxy — for the Anthropic Messages protocol this overrides
    * the fact that @anthropic-ai/sdk ignores HTTP(S)_PROXY env vars.
    */

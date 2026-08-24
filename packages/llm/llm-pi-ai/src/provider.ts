@@ -83,7 +83,7 @@ function attachProxyFetch(models: readonly Model<Api>[], proxy: string | undefin
  * (`@anthropic-ai/sdk` otherwise ignores HTTP(S)_PROXY env vars). Only the
  * Anthropic protocol honours `model.fetch` today; the OpenAI-compatible APIs
  * resolve proxies from the environment themselves.
- * @param proxy - the proxy URL (e.g. `http://<proxy-legacy-host>:7890`).
+ * @param proxy - the proxy URL (e.g. `http://<proxy-host>:7890`).
  * @returns a fetch function bound to a per-call undici ProxyAgent.
  */
 function proxyFetch(proxy: string): typeof fetch {
