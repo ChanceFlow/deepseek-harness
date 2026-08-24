@@ -34,7 +34,7 @@
 
 ## D3: per-provider proxy 与任意 web host
 
-行为：`llm-pi-ai` 的 provider 路由新增 `proxy` 字段（如 `http://<proxy-legacy-host>:7890`），设置后该路由每个模型的出站请求经 undici `ProxyAgent` 代理——含 Anthropic Messages 协议（依赖 D4 私服构建的 `model.fetch` 透传）；`dsh web` 接受任意 `--host`（含 `0.0.0.0`）。
+行为：`llm-pi-ai` 的 provider 路由新增 `proxy` 字段（如 `http://<proxy-host>:7890`），设置后该路由每个模型的出站请求经 undici `ProxyAgent` 代理——含 Anthropic Messages 协议（依赖 D4 私服构建的 `model.fetch` 透传）；`dsh web` 接受任意 `--host`（含 `0.0.0.0`）。
 目的：`claude.p1.cn` 等端点必须经 LAN clash 代理才可达；服务绑定 LAN。
 提交：`6eafb8e59a`（实现）、`1f638eaa0c`（表单断言测试）、`8731a9fa42`（config-catalog 入册）。
 文件：`packages/llm/llm-pi-ai/src/{provider,config}.ts`、`packages/client/ui-settings-models/src/client/{CustomProviderCard,ProviderEditor}.tsx`、`packages/bundle/web-app/src/startup.ts`、`apps/cli`。
@@ -50,7 +50,7 @@
 
 ## D5: fork 发版体系
 
-行为：全家族以 `<upstream 版本>-chance.N` 发布到本地 Gitea 私服（`http://<gitea-legacy-host>:3000/api/packages/Chance/npm/`，由 gitignore 的本地 `.npmrc` 指向）；发版时的版本 bump 与 lockfile 同时提交；lockfile 策略为"以 upstream 解析为基底 + fork 增量（pi-ai 钉版、undici）"，避免 dev 依赖漂移；`/dist/`、`/apps/cli/dist/` 为发版 staging 产物，已 gitignore。
+行为：全家族以 `<upstream 版本>-chance.N` 发布到本地 Gitea 私服（`http://<gitea-host>:3000/api/packages/chanceflow/npm/`，由 gitignore 的本地 `.npmrc` 指向）；发版时的版本 bump 与 lockfile 同时提交；lockfile 策略为"以 upstream 解析为基底 + fork 增量（pi-ai 钉版、undici）"，避免 dev 依赖漂移；`/dist/`、`/apps/cli/dist/` 为发版 staging 产物，已 gitignore。
 目的：内网部署不经公共 npm；fork 版本与 upstream 公开发版同库共存不冲突。
 提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）。
 细节：[fork registry 与 pi-ai chance 构建](.agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md)；用户接入与版本鉴别见 [REGISTRY.md](REGISTRY.md)。

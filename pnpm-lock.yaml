@@ -9654,11 +9654,11 @@ packages:
         optional: true
 
   '@earendil-works/pi-ai@0.84.2-chance.0':
-    resolution: {integrity: sha512-zMbnpBRXPpxQ2SI/wrQJMPrpZ8YKXoFkPAX7dWSF2UVQyXtLWYXLfJHMbIvY913h9TEh02nf+ul/TT7OEqgj5A==, tarball: http://<gitea-legacy-host>:3000/api/packages/Chance/npm/%40earendil-works%2Fpi-ai/-/0.84.2-chance.0/pi-ai-0.84.2-chance.0.tgz}
+    resolution: {integrity: sha512-zMbnpBRXPpxQ2SI/wrQJMPrpZ8YKXoFkPAX7dWSF2UVQyXtLWYXLfJHMbIvY913h9TEh02nf+ul/TT7OEqgj5A==, tarball: http://<gitea-host>:3000/api/packages/chanceflow/npm/%40earendil-works%2Fpi-ai/-/0.84.2-chance.0/pi-ai-0.84.2-chance.0.tgz}
     hasBin: true
 
   '@earendil-works/pi-telemetry@0.84.2':
-    resolution: {integrity: sha512-wg5caea7uIv1BHRBm2Y116RvFG4oSAiP5qk9tA2463PDGIr4K8M1Ceyyg5DOpF/shUUl0gk826yQJAeAcHYB9g==, tarball: http://<gitea-legacy-host>:3000/api/packages/Chance/npm/%40earendil-works%2Fpi-telemetry/-/0.84.2/pi-telemetry-0.84.2.tgz}
+    resolution: {integrity: sha512-wg5caea7uIv1BHRBm2Y116RvFG4oSAiP5qk9tA2463PDGIr4K8M1Ceyyg5DOpF/shUUl0gk826yQJAeAcHYB9g==, tarball: http://<gitea-host>:3000/api/packages/chanceflow/npm/%40earendil-works%2Fpi-telemetry/-/0.84.2/pi-telemetry-0.84.2.tgz}
 
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}

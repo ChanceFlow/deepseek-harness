@@ -30,8 +30,8 @@ jobs:
         run: |
           {
             echo 'registry=https://registry.npmmirror.com'
-            echo '@deepseek-ai:registry=http://<gitea-legacy-host>:3000/api/packages/Chance/npm/'
-            echo '@earendil-works:registry=http://<gitea-legacy-host>:3000/api/packages/Chance/npm/'
+            echo '@deepseek-ai:registry=http://<gitea-host>:3000/api/packages/chanceflow/npm/'
+            echo '@earendil-works:registry=http://<gitea-host>:3000/api/packages/chanceflow/npm/'
             grep _authToken /ci/secret-npmrc
           } > /root/.npmrc
       - name: Install dependencies

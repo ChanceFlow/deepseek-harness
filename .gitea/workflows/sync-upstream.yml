@@ -18,7 +18,7 @@ jobs:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          git clone "http://x-access-token:${TOKEN}@gitea:3000/Chance/deepseek-harness.git" repo
+          git clone "http://x-access-token:${TOKEN}@gitea:3000/chanceflow/deepseek-harness.git" repo
           cd repo
           git remote add upstream http://gitea:3000/GithubMirror/deepseek-harness.git
           git fetch upstream master
@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           cd repo
-          git push "http://x-access-token:${TOKEN}@gitea:3000/Chance/deepseek-harness.git" master
+          git push "http://x-access-token:${TOKEN}@gitea:3000/chanceflow/deepseek-harness.git" master
 
       - name: Report merge conflict
         if: ${{ failure() }}

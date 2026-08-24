@@ -1,7 +1,7 @@
 # Fork CI: typecheck + the suites that own the fork's behavioral deltas.
 # Container runner (docker jobs); pnpm store persists on a host volume.
 # Registries are reached directly: npmmirror (lockfile URLs) and the Gitea
-# npm registry on <gitea-legacy-host>. The host ~/.npmrc is NOT mounted as-is — its
+# npm registry on <gitea-host>. The host ~/.npmrc is NOT mounted as-is — its
 # localhost:7890 proxy is unreachable inside job containers — only its
 # _authToken is reused, via the generated /root/.npmrc.
 name: Check
@@ -31,8 +31,8 @@ jobs:
         run: |
           {
             echo 'registry=https://registry.npmmirror.com'
-            echo '@deepseek-ai:registry=http://<gitea-legacy-host>:3000/api/packages/Chance/npm/'
-            echo '@earendil-works:registry=http://<gitea-legacy-host>:3000/api/packages/Chance/npm/'
+            echo '@deepseek-ai:registry=http://<gitea-host>:3000/api/packages/chanceflow/npm/'
+            echo '@earendil-works:registry=http://<gitea-host>:3000/api/packages/chanceflow/npm/'
             grep _authToken /ci/secret-npmrc
           } > /root/.npmrc
       - name: Install dependencies

@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-本 checkout 是部署在内网的私有 fork，其 npm registry 是一个 Gitea 包仓库（`http://<gitea-legacy-host>:3000/api/packages/Chance/npm/`）。根目录 `.npmrc`——按设计被 gitignore——把 `@deepseek-ai` 与 `@earendil-works` 两个 scope 指向该私服，安装因此不依赖公共 npm 的可达性。fork 在 upstream 版本号后追加 `-chance.N` 后缀发布自己的版本（`0.1.0-rc.6-chance.1`），而 upstream 的公开发版（`0.1.0-rc.7`）以 `next` dist-tag 并存于同一私服。
+本 checkout 是部署在内网的私有 fork，其 npm registry 是一个 Gitea 包仓库（`http://<gitea-host>:3000/api/packages/chanceflow/npm/`）。根目录 `.npmrc`——按设计被 gitignore——把 `@deepseek-ai` 与 `@earendil-works` 两个 scope 指向该私服，安装因此不依赖公共 npm 的可达性。fork 在 upstream 版本号后追加 `-chance.N` 后缀发布自己的版本（`0.1.0-rc.6-chance.1`），而 upstream 的公开发版（`0.1.0-rc.7`）以 `next` dist-tag 并存于同一私服。
 
 这个布局有两个事实单看仓库看不出来，而 2026-08-17 的发版状态又没提交，导致后来的会话只能靠取证式 diff 重新发现它们。其一，私服上除 fork 打过补丁的 `-chance` 重建版外，还镜像了公共 pi-ai 的原版发布（`0.82.1`、`0.84.1`、`0.84.2`）。其二，fork 的 `dsh-llm-pi-ai` 依赖一个任何 upstream 版本都没有的 pi-ai 能力：Anthropic 适配器认 per-model `model.fetch`，per-provider `proxy` 路由字段需要它（给路由上每个模型挂 undici `ProxyAgent` 绑定的 fetch；走 `claude.p1.cn` 的 `p1` 路由离不开它）。
 
