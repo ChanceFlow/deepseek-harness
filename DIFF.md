@@ -22,7 +22,7 @@
 目的：本部署就是 LAN IP + http，不引入 TLS。
 提交：`7e2a93c9c5`（browserUuid 回退）、`1d03929344` + `6c7840ab13`（UUID：randomUUID 优先，getRandomValues 兜底——后者修复了绕开 schedule 测试 mock 的回归）、`54b4d5fbf5`（AbortError→cancelled）。
 文件：`packages/client/ui-conversation/src/client/service.ts`、`packages/host/apiproxy/src/fetch/client.ts`、`packages/llm/llm/src/message.ts`、`packages/client/runtime/src/client/sessions/session.ts`、`packages/host/apiproxy/src/api/rpc.ts`。
-同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。
+同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。rc.2（540c0cf5bb）upstream 改动了 `service.ts`/`rpc.ts`，合入后 browserUuid 回退与 cancelled 语义已核对仍成立。
 
 ## D2: 特权方法不再限定 loopback
 
@@ -30,15 +30,15 @@
 目的：部署在可信 LAN，配置面需要从 LAN 客户端直接可达。
 提交：`3671721245`（实现）、`1f638eaa0c`（404 断言测试）。
 文件：`packages/client/connection/src/index.ts`、`packages/client/connection/tests/node-half.host.spec.ts`。
-同步注意：upstream 未改 `connection/src/index.ts` 时不冲突；若 upstream 重构特权方法表，按"跟随 trusted-host"的语义重放。
+同步注意：upstream 未改 `connection/src/index.ts` 时不冲突；若 upstream 重构特权方法表，按"跟随 trusted-host"的语义重放。rc.2（540c0cf5bb）upstream 改动了该文件，合入后特权方法跟随 trusted-host 栅栏已核对仍成立。
 
 ## D3: per-provider proxy 与任意 web host
 
 行为：`llm-pi-ai` 的 provider 路由新增 `proxy` 字段（如 `http://<proxy-host>:7890`），设置后该路由每个模型的出站请求经 undici `ProxyAgent` 代理——含 Anthropic Messages 协议（依赖 D4 私服构建的 `model.fetch` 透传）；`dsh web` 接受任意 `--host`（含 `0.0.0.0`）。
 目的：`claude.p1.cn` 等端点必须经 LAN clash 代理才可达；服务绑定 LAN。
-提交：`6eafb8e59a`（实现）、`1f638eaa0c`（表单断言测试）、`8731a9fa42`（config-catalog 入册）。
+提交：`6eafb8e59a`（实现）、`1f638eaa0c`（表单断言测试）、`8731a9fa42`（config-catalog 入册）、`3691d75540`（代理注释地址迁移到 <proxy-host>）。
 文件：`packages/llm/llm-pi-ai/src/{provider,config}.ts`、`packages/client/ui-settings-models/src/client/{CustomProviderCard,ProviderEditor}.tsx`、`packages/bundle/web-app/src/startup.ts`、`apps/cli`。
-同步注意：`proxy` 是 fork 私有配置面；upstream 若引入同名能力以 upstream 为准并重新评估 D4 的 model.fetch 依赖。
+同步注意：`proxy` 是 fork 私有配置面；upstream 若引入同名能力以 upstream 为准并重新评估 D4 的 model.fetch 依赖。rc.2（540c0cf5bb）upstream 改动了 `config.ts`/`provider.ts`/`startup.ts`，合入后 proxy 与任意 `--host` 已核对仍成立。
 
 ## D4: pi-ai 0.84.2-chance.0 钉版与 0.84 适配
 
@@ -50,11 +50,11 @@
 
 ## D5: fork 发版体系
 
-行为：全家族以 `<upstream 版本>-chance.N` 发布到本地 Gitea 私服（`http://<gitea-host>:3000/api/packages/chanceflow/npm/`，由 gitignore 的本地 `.npmrc` 指向）；发版时的版本 bump 与 lockfile 同时提交；lockfile 策略为"以 upstream 解析为基底 + fork 增量（pi-ai 钉版、undici）"，避免 dev 依赖漂移；`/dist/`、`/apps/cli/dist/` 为发版 staging 产物，已 gitignore。
+行为：全家族以 `<upstream 版本>-chance.N` 发布到本地 Gitea 私服（`http://<gitea-host>:3000/api/packages/ChanceFlow/npm/`，由 gitignore 的本地 `.npmrc` 指向）；发版时的版本 bump 与 lockfile 同时提交；lockfile 策略为"以 upstream 解析为基底 + fork 增量（pi-ai 钉版、undici）"，避免 dev 依赖漂移；`/dist/`、`/apps/cli/dist/` 为发版 staging 产物，已 gitignore。
 目的：内网部署不经公共 npm；fork 版本与 upstream 公开发版同库共存不冲突。
-提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）。
+提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）、`11b77d8f8d`（内网与组织名迁移，含 registry 端点）。
 细节：[fork registry 与 pi-ai chance 构建](.agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md)；用户接入与版本鉴别见 [REGISTRY.md](REGISTRY.md)。
-同步注意：版本号冲突（222 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）。
+同步注意：版本号冲突（rc.2 实测 230 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；registry 组织名必须以注册表规范大小写 `ChanceFlow` 书写（Gitea 路由不分大小写，但 pnpm 的 tarball 供应链校验区分大小写，lockfile/workflow 里的小写 `chanceflow` 会被 `[ERR_PNPM_TARBALL_URL_MISMATCH]` 拒绝）；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）。
 
 ## D6: upstream 自动同步 workflow
 
@@ -70,4 +70,4 @@
 目的：发版与检查全自动；生产部署保留人工门。
 运行环境：容器 runner（act_runner 容器，`ubuntu-latest` 标签，job 容器 `node:22-bookworm` + 禁 IPv6 + pnpm store 卷 `~/.cache/ci-pnpm`）+ host runner（`dsh-host` 标签，systemd user 单元 `act-runner-host`，做部署类 job）。job 内 `.npmrc` 现场生成（只含 scope 路由 + token）——宿主 `~/.npmrc` 的 `proxy=http://localhost:7890/` 在容器内指向容器自身，绝不能整文件挂载；runner 配置的 `envs:` 会覆盖 workflow env，故代理类变量全部由 workflow 自管。
 提交：`a829ceacaf` 起的 `.gitea/workflows/` 系列。
-同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。release 的 staging 部署会把本仓库检出到 tag 的 detached HEAD——后续开发先 `git checkout master`。
+同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。release 的 staging 部署会把本仓库检出到 tag 的 detached HEAD——后续开发先 `git checkout master`。workflow 内 git/npm 端点随 `11b77d8f8d` 迁到 `<gitea-host>`/`ChanceFlow`，且 job 内现场生成 `.npmrc` 的 scope 路由必须用规范大小写（见 D5）。
