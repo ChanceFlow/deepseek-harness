@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-01-gitea-github-fork-mirror.md
-2026-09-01-gitea-github-fork-mirror.md: 881b4878c77e2548891c44a5b355d7cb4f8dcfa9
-2026-09-01-gitea-github-fork-mirror.zh.md: ac07413a1ebb11a61175e9e46c2ba4de5a279e55
+2026-09-01-gitea-github-fork-mirror.md: 2839545eb6bfa8d818449f9e97fd2603ba20a7c6
+2026-09-01-gitea-github-fork-mirror.zh.md: 2164a7420fbab2814d079627b3aafa5a775835f2
