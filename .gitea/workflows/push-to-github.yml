@@ -1,0 +1,63 @@
+# One-way mirror of the fork's master onto the GitHub fork.
+# The Gitea repo is the source of truth (upstream merges land there via
+# sync-upstream.yml); this workflow pushes each master update to
+# github.com/ChanceFlow/deepseek-harness using the host gh CLI
+# (runs-on: dsh-host authenticates as the logged-in gh account; the runner
+# env provides HTTP(S)_PROXY for github.com reachability).
+# The push is forced: nothing but this workflow writes the fork's master, and
+# upstream merges can be non-fast-forward. The GitHub fork is read-only
+# downstream; do not open PRs or branches against it expecting persistence.
+name: Push to GitHub fork
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: push-to-github
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: dsh-host
+    env:
+      UPSTREAM_GH: deepseek-ai/deepseek-harness
+      GH_FORK: ChanceFlow/deepseek-harness
+      GITEA_URL: http://<gitea-host>:3000/ChanceFlow/deepseek-harness.git
+    steps:
+      - name: Ensure the GitHub fork exists
+        run: |
+          set -euo pipefail
+          if ! gh repo view "$GH_FORK" >/dev/null 2>&1; then
+            gh repo fork "$UPSTREAM_GH" --clone=false
+            # Forking is asynchronous: wait until the fork answers git protocol.
+            for _ in $(seq 1 30); do
+              git ls-remote "https://github.com/$GH_FORK.git" HEAD >/dev/null 2>&1 && break
+              sleep 2
+            done
+          fi
+
+      - name: Fetch master from Gitea into the bare cache
+        run: |
+          set -euo pipefail
+          MIRROR="$HOME/.cache/gh-fork-sync/deepseek-harness.git"
+          mkdir -p "$(dirname "$MIRROR")"
+          if [ ! -d "$MIRROR" ]; then
+            git clone --bare "$GITEA_URL" "$MIRROR"
+          fi
+          cd "$MIRROR"
+          git remote set-url origin "$GITEA_URL"
+          git fetch --force origin +refs/heads/master:refs/heads/master
+
+      - name: Push master to the GitHub fork
+        run: |
+          set -euo pipefail
+          cd "$HOME/.cache/gh-fork-sync/deepseek-harness.git"
+          git push --force "https://github.com/$GH_FORK.git" \
+            refs/heads/master:refs/heads/master
+          echo "Synced $(git rev-parse --short refs/heads/master) to github.com/$GH_FORK"
+
+      - name: Report failure
+        if: ${{ failure() }}
+        run: echo "::error::GitHub fork sync failed. Check gh auth, proxy, and dsh-host runner health."
