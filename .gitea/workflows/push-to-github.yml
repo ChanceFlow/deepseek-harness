@@ -55,19 +55,20 @@ jobs:
           git clone --quiet --mirror "$GITEA_URL" "$WORK/mirror.git"
           # filter-repo splits expressions at "==>" without trimming the left
           # side, so no spaces may appear around the arrow. Blob and message
-          # passes are separate flags. The mailmap rewrites author/committer
-          # identities; the email also appears in historical commit bodies.
+          # passes are separate flags. The YAML block scalar strips the base
+          # indent, so the heredoc bodies carry no leading whitespace when the
+          # shell reads them.
           cat > "$WORK/replace.txt" <<'REPLACE-EOF'
-<proxy-host>==><proxy-host>
-<gitea-host>==><gitea-host>
-<gitea-legacy-host>==><gitea-legacy-host>
-<proxy-legacy-host>==><proxy-legacy-host>
-/home/<user>==>/home/<user>
-175793383+ChanceFlow@users.noreply.github.com==>175793383+ChanceFlow@users.noreply.github.com
-REPLACE-EOF
+          <proxy-host>==><proxy-host>
+          <gitea-host>==><gitea-host>
+          <gitea-legacy-host>==><gitea-legacy-host>
+          <proxy-legacy-host>==><proxy-legacy-host>
+          /home/<user>==>/home/<user>
+          175793383+ChanceFlow@users.noreply.github.com==>175793383+ChanceFlow@users.noreply.github.com
+          REPLACE-EOF
           cat > "$WORK/mailmap" <<'MAILMAP-EOF'
-Chance <175793383+ChanceFlow@users.noreply.github.com> <175793383+ChanceFlow@users.noreply.github.com>
-MAILMAP-EOF
+          Chance <175793383+ChanceFlow@users.noreply.github.com> <175793383+ChanceFlow@users.noreply.github.com>
+          MAILMAP-EOF
           git -C "$WORK/mirror.git" filter-repo --force \
             --mailmap "$WORK/mailmap" \
             --replace-text "$WORK/replace.txt" \
