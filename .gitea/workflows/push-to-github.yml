@@ -4,9 +4,18 @@
 # github.com/ChanceFlow/deepseek-harness using the host gh CLI
 # (runs-on: dsh-host authenticates as the logged-in gh account; the runner
 # env provides HTTP(S)_PROXY for github.com reachability).
-# The push is forced: nothing but this workflow writes the fork's master, and
-# upstream merges can be non-fast-forward. The GitHub fork is read-only
-# downstream; do not open PRs or branches against it expecting persistence.
+#
+# History sanitization: Gitea history is LAN-only and carries internal
+# addresses, host paths, and a personal author email; the GitHub copy must
+# not. Each run rewrites a throwaway mirror clone with git-filter-repo
+# (literal text and message replacements + a mailmap) and force-pushes the
+# rewritten refs. Gitea history is never rewritten, so LAN installs and npm
+# gitHead provenance keep working; GitHub SHAs intentionally differ from
+# Gitea SHAs, which is why DIFF.md's commit references resolve on Gitea only.
+#
+# The push is forced: nothing but this workflow writes the fork's master.
+# The GitHub fork is read-only downstream; do not open PRs or branches
+# against it expecting persistence.
 name: Push to GitHub fork
 
 on:
@@ -24,40 +33,51 @@ jobs:
     env:
       UPSTREAM_GH: deepseek-ai/deepseek-harness
       GH_FORK: ChanceFlow/deepseek-harness
-      GITEA_URL: http://<gitea-host>:3000/ChanceFlow/deepseek-harness.git
+      GITEA_URL: ${{ github.server_url }}/${{ github.repository }}.git
     steps:
       - name: Ensure the GitHub fork exists
         run: |
           set -euo pipefail
           if ! gh repo view "$GH_FORK" >/dev/null 2>&1; then
             gh repo fork "$UPSTREAM_GH" --clone=false
-            # Forking is asynchronous: wait until the fork answers git protocol.
             for _ in $(seq 1 30); do
               git ls-remote "https://github.com/$GH_FORK.git" HEAD >/dev/null 2>&1 && break
               sleep 2
             done
           fi
 
-      - name: Fetch master from Gitea into the bare cache
+      - name: Sanitized mirror push
         run: |
           set -euo pipefail
-          MIRROR="$HOME/.cache/gh-fork-sync/deepseek-harness.git"
-          mkdir -p "$(dirname "$MIRROR")"
-          if [ ! -d "$MIRROR" ]; then
-            git clone --bare "$GITEA_URL" "$MIRROR"
-          fi
-          cd "$MIRROR"
-          git remote set-url origin "$GITEA_URL"
-          git fetch --force origin +refs/heads/master:refs/heads/master
-
-      - name: Push master to the GitHub fork
-        run: |
-          set -euo pipefail
-          cd "$HOME/.cache/gh-fork-sync/deepseek-harness.git"
-          git push --force "https://github.com/$GH_FORK.git" \
-            refs/heads/master:refs/heads/master
-          echo "Synced $(git rev-parse --short refs/heads/master) to github.com/$GH_FORK"
+          export PATH="$HOME/.local/bin:$PATH"
+          WORK="$(mktemp -d /tmp/gh-fork-mirror.XXXXXX)"
+          trap 'rm -rf "$WORK"' EXIT
+          git clone --quiet --mirror "$GITEA_URL" "$WORK/mirror.git"
+          # filter-repo splits expressions at "==>" without trimming the left
+          # side, so no spaces may appear around the arrow. Blob and message
+          # passes are separate flags. The mailmap rewrites author/committer
+          # identities; the email also appears in historical commit bodies.
+          cat > "$WORK/replace.txt" <<'REPLACE-EOF'
+<proxy-host>==><proxy-host>
+<gitea-host>==><gitea-host>
+<gitea-legacy-host>==><gitea-legacy-host>
+<proxy-legacy-host>==><proxy-legacy-host>
+/home/<user>==>/home/<user>
+175793383+ChanceFlow@users.noreply.github.com==>175793383+ChanceFlow@users.noreply.github.com
+REPLACE-EOF
+          cat > "$WORK/mailmap" <<'MAILMAP-EOF'
+Chance <175793383+ChanceFlow@users.noreply.github.com> <175793383+ChanceFlow@users.noreply.github.com>
+MAILMAP-EOF
+          git -C "$WORK/mirror.git" filter-repo --force \
+            --mailmap "$WORK/mailmap" \
+            --replace-text "$WORK/replace.txt" \
+            --replace-message "$WORK/replace.txt"
+          git -C "$WORK/mirror.git" push --force \
+            "https://github.com/$GH_FORK.git" \
+            'refs/heads/master:refs/heads/master' \
+            '+refs/tags/*:refs/tags/*'
+          echo "Synced sanitized master $(git -C "$WORK/mirror.git" rev-parse --short refs/heads/master) to github.com/$GH_FORK"
 
       - name: Report failure
         if: ${{ failure() }}
-        run: echo "::error::GitHub fork sync failed. Check gh auth, proxy, and dsh-host runner health."
+        run: echo "::error::GitHub fork sync failed. Check gh auth, proxy, filter-repo availability, and dsh-host runner health."

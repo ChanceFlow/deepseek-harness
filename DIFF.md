@@ -1,6 +1,7 @@
 # DIFF.md — fork 与 upstream 的差异登记簿
 
 本文件只存在于 fork（upstream 没有它，因此永不产生合并冲突），登记本仓库相对 `upstream/master`（`GithubMirror/deepseek-harness`）的全部行为差异：每条差异写明行为、目的、涉及提交与同步注意事项。
+文中 `<gitea-host>`、`<gitea-legacy-host>`、`<proxy-host>`、`<user>` 是脱敏占位符，真实值在内网运维配置中，不入库；"关键提交"的短哈希在 Gitea 源仓库可解析，GitHub 镜像经 push-to-github 流水线脱敏重写后哈希不同。
 维护规则：增删 fork 差异的同一个变更里更新本文件；每次合并 upstream 后核对一遍。
 核对命令：`git log --no-merges --format='%h %s' upstream/master..master` —— 输出的每个非合并提交都必须能映射到下表某一条；反过来表中提交如已被 upstream 收编，删除对应条目。
 

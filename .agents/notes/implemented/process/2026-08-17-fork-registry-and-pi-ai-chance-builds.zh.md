@@ -22,11 +22,11 @@ Status: implemented
 
 ### fork 发版状态在发布时提交
 
-全家桶 `-chance.N` 版本号 bump 在发布时一并提交（staging tarball 落在 `dist/npm-chance-N/`，现已 gitignore，私服同时以 `latest` 提供同一版本）。除此之外仓库版本号跟随 upstream 的[三条独立发布序列](2026-08-10-npm-release-sequences.md)；upstream `0.1.0-rc.7` 之后的下一个 fork 版本是 `0.1.0-rc.7-chance.0`。Gitea 的 `sync-upstream` workflow 每 6 小时把 `upstream/master` 合入 fork 的 `master`，冲突即显式失败，因此冲突同步由人工一次性解决——2026-08-17 对 upstream rc.6/rc.7 窗口的合并就是一次这样的解决。
+全家桶 `-chance.N` 版本号 bump 在发布时一并提交（staging tarball 落在 `dist/npm-chance-N/`，现已 gitignore，私服同时以 `latest` 提供同一版本）。除此之外仓库版本号跟随 upstream 的[三条独立发布序列](2026-08-10-npm-release-sequences.zh.md)；upstream `0.1.0-rc.7` 之后的下一个 fork 版本是 `0.1.0-rc.7-chance.0`。Gitea 的 `sync-upstream` workflow 每 6 小时把 `upstream/master` 合入 fork 的 `master`，冲突即显式失败，因此冲突同步由人工一次性解决——2026-08-17 对 upstream rc.6/rc.7 窗口的合并就是一次这样的解决。
 
 ### dsh-llm-pi-ai 的 0.84 适配面
 
-pi-ai 0.84 独有的 compat 字段（`chatTemplateArgs`、`supportsFinishReason`、`supportsThinkingTokenBudget`、`supportsAdditionalTools`）在上游的 disposition gate 中保持 withhold，直到上游自己的 pi-ai 升级对它们分类；`baseten` 则留在 thinking-format gate 里：上游 rc.8 的双向 profile 字段检查要求 offered 字段与上游联合类型完全一致，退出一个联合成员等于改写上游的安全不变式，而带着未配置的 `chatTemplateArgs` 命名 baseten 是更小的分歧。新的 `StopReason` 成员都有显式映射：`pending` 是传输截断——是[扁平化消息截断分类](../bug-fix/2026-07-22-pi-ai-transport-truncation-classification.md)里的又一种措辞——`deferred` 是不支持完成模式。调用方 signal 已 abort 时，终态 `error` 会被重新归类为 `aborted`：pi-ai 0.84 在鉴权解析里加了 `throwIfAborted()`，惰性 setup 包装器把这个 abort 变成了通用的 setup 错误事件，而同一 abort 发生在流中时 pi-ai 自己仍归类为 `aborted`。0.84 目录给 `deepseek-v4-flash` 增加了 `low` 档，并把 `maxTokensField` 定为 `max_tokens`。
+pi-ai 0.84 独有的 compat 字段（`chatTemplateArgs`、`supportsFinishReason`、`supportsThinkingTokenBudget`、`supportsAdditionalTools`）在上游的 disposition gate 中保持 withhold，直到上游自己的 pi-ai 升级对它们分类；`baseten` 则留在 thinking-format gate 里：上游 rc.8 的双向 profile 字段检查要求 offered 字段与上游联合类型完全一致，退出一个联合成员等于改写上游的安全不变式，而带着未配置的 `chatTemplateArgs` 命名 baseten 是更小的分歧。新的 `StopReason` 成员都有显式映射：`pending` 是传输截断——是[扁平化消息截断分类](../bug-fix/2026-07-22-pi-ai-transport-truncation-classification.zh.md)里的又一种措辞——`deferred` 是不支持完成模式。调用方 signal 已 abort 时，终态 `error` 会被重新归类为 `aborted`：pi-ai 0.84 在鉴权解析里加了 `throwIfAborted()`，惰性 setup 包装器把这个 abort 变成了通用的 setup 错误事件，而同一 abort 发生在流中时 pi-ai 自己仍归类为 `aborted`。0.84 目录给 `deepseek-v4-flash` 增加了 `low` 档，并把 `maxTokensField` 定为 `max_tokens`。
 
 ## 考虑过的替代方案
 

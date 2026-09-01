@@ -1,6 +1,6 @@
 # npm Registry 使用指南
 
-本仓库的 `@deepseek-ai` 包发布在 Gitea 包仓库（`http://<gitea-host>:3000/api/packages/ChanceFlow/npm/`）。本文说明如何接入、如何选择与鉴别版本。
+本仓库的 `@deepseek-ai` 包发布在 Gitea 包仓库（`http://<gitea-host>:3000/api/packages/ChanceFlow/npm/`）。本文说明如何接入、如何选择与鉴别版本。文中 `<gitea-host>` 为内网 Gitea 实例地址的占位符，真实值见内网运维配置，不入库。
 
 ## 接入
 
