@@ -23,7 +23,7 @@
 目的：本部署就是 LAN IP + http，不引入 TLS。
 提交：`7e2a93c9c5`（browserUuid 回退）、`1d03929344` + `6c7840ab13`（UUID：randomUUID 优先，getRandomValues 兜底——后者修复了绕开 schedule 测试 mock 的回归）、`54b4d5fbf5`（AbortError→cancelled）。
 文件：`packages/client/ui-conversation/src/client/service.ts`、`packages/host/apiproxy/src/fetch/client.ts`、`packages/llm/llm/src/message.ts`、`packages/client/runtime/src/client/sessions/session.ts`、`packages/host/apiproxy/src/api/rpc.ts`。
-同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。rc.2（540c0cf5bb）upstream 改动了 `service.ts`/`rpc.ts`，合入后 browserUuid 回退与 cancelled 语义已核对仍成立。
+同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。rc.2（540c0cf5bb）upstream 改动了 `service.ts`/`rpc.ts`，合入后 browserUuid 回退与 cancelled 语义已核对仍成立。0.1.2-rc.1 合入：upstream 官方引入 `@deepseek-ai/dsh-util-crypto` 并落地全仓 lint 规则，统一解决非安全上下文 UUID 问题；`apiproxy` 与 `client-runtime` 已被 upstream 重构解耦，browserUuid 与旧 rpc.ts 子项并入 upstream。
 
 ## D2: 特权方法不再限定 loopback
 
@@ -31,7 +31,7 @@
 目的：部署在可信 LAN，配置面需要从 LAN 客户端直接可达。
 提交：`3671721245`（实现）、`1f638eaa0c`（404 断言测试）。
 文件：`packages/client/connection/src/index.ts`、`packages/client/connection/tests/node-half.host.spec.ts`。
-同步注意：upstream 未改 `connection/src/index.ts` 时不冲突；若 upstream 重构特权方法表，按"跟随 trusted-host"的语义重放。rc.2（540c0cf5bb）upstream 改动了该文件，合入后特权方法跟随 trusted-host 栅栏已核对仍成立。
+同步注意：upstream 未改 `connection/src/index.ts` 时不冲突；若 upstream 重构特权方法表，按"跟随 trusted-host"的语义重放。rc.2（540c0cf5bb）upstream 改动了该文件，合入后特权方法跟随 trusted-host 栅栏已核对仍成立。0.1.2-rc.1 合入：upstream 官方以 `BrowserAuth` Cookie 统一全部 RPC 方法鉴权，彻底移除了特权方法仅限 loopback 的旧限制，D2 已被 upstream 完全吸收。
 
 ## D3: per-provider proxy 与任意 web host
 
@@ -39,7 +39,7 @@
 目的：`claude.p1.cn` 等端点必须经 LAN clash 代理才可达；服务绑定 LAN。
 提交：`6eafb8e59a`（实现）、`1f638eaa0c`（表单断言测试）、`8731a9fa42`（config-catalog 入册）、`3691d75540`（代理注释地址迁移到 <proxy-host>）。
 文件：`packages/llm/llm-pi-ai/src/{provider,config}.ts`、`packages/client/ui-settings-models/src/client/{CustomProviderCard,ProviderEditor}.tsx`、`packages/bundle/web-app/src/startup.ts`、`apps/cli`。
-同步注意：`proxy` 是 fork 私有配置面；upstream 若引入同名能力以 upstream 为准并重新评估 D4 的 model.fetch 依赖。rc.2（540c0cf5bb）upstream 改动了 `config.ts`/`provider.ts`/`startup.ts`，合入后 proxy 与任意 `--host` 已核对仍成立。
+同步注意：`proxy` 是 fork 私有配置面；upstream 若引入同名能力以 upstream 为准并重新评估 D4 的 model.fetch 依赖。rc.2（540c0cf5bb）upstream 改动了 `config.ts`/`provider.ts`/`startup.ts`，合入后 proxy 与任意 `--host` 已核对仍成立。0.1.2-rc.1 合入：`llm-pi-ai` `provider.ts`、`config.ts`、`ui-settings-models` 等文件的 proxy 及 `--host` 逻辑已完整保留并通过全量单测。
 
 ## D4: pi-ai 0.84.2-chance.0 钉版与 0.84 适配
 
@@ -47,7 +47,7 @@
 目的：0.84 修复了 Anthropic 网关在 `content_block_start` 携带完整 thinking 块时内容/签名被清零的 bug（p1 路由必需）；钉版防止 `^` 范围解析到同私服上无补丁的原版镜像。
 提交：`108dec0913`（钉版+发版）、`528823ee39`（0.84 适配）、`45ba30bf52`（lockfile 策略）。
 文件：`packages/llm/llm-pi-ai/src/{catalog,stream,adapter}.ts`、`packages/llm/llm-pi-ai/package.json`。
-同步注意：upstream 仍用 `^0.82.1`——每次合并后 lockfile 以 upstream 为基底重建，再重放钉版（见 D5）；upstream 升 0.84 时适配提交变无操作，届时删除本条并入 upstream。0.1.1-rc.1 合入后新增的 `auth.ts`/`login.ts`（按 0.82.1 类型面编写）已在钉版 0.84.2-chance.0 上通过 typecheck（0.84 的 auth 面是 0.82 的超集）；upstream 若改用 0.84 类型面，重新核对此条。
+同步注意：upstream 仍用 `^0.82.1`——每次合并后 lockfile 以 upstream 为基底重建，再重放钉版（见 D5）；upstream 升 0.84 时适配提交变无操作，届时删除本条并入 upstream。0.1.1-rc.1 合入后新增的 `auth.ts`/`login.ts`（按 0.82.1 类型面编写）已在钉版 0.84.2-chance.0 上通过 typecheck（0.84 的 auth 面是 0.82 的超集）；upstream 若改用 0.84 类型面，重新核对此条。0.1.2-rc.1 合入：upstream 官方已升级到 pi-ai `^0.84.2` 并完整分类 0.84 compat 字段；fork 侧保留 `0.84.2-chance.0` 钉版与 undici 依赖（以支持 D3 的 proxy），测试全绿。
 
 ## D5: fork 发版体系
 
