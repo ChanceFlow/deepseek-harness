@@ -27,6 +27,8 @@ tmp/
 .idea
 mise.toml
 dist-exe/
+/dist/
+apps/desktop/.desktop-build/
 python/sdk-runtime/src/deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-*
 python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/
 python/**/__pycache__/
@@ -41,7 +43,6 @@ apps/web/dist/
 worktrees/
 .agents/worktrees/
 .typert-*/
-
 # Local install helper: maps @earendil-works to the public mirror for this
 # checkout (the lockfile pins a version the local Gitea npm mirror lacks).
 .npmrc
@@ -49,3 +50,5 @@ worktrees/
 # Fork release staging: packed tarballs from the local registry publish flow.
 /dist/
 /apps/cli/dist/
+
+native/system/test/bin/
