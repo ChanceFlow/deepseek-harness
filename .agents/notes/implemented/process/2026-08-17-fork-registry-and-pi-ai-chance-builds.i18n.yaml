@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md
-2026-08-17-fork-registry-and-pi-ai-chance-builds.md: 54ae2472adc2bc74a9cee76599393bb56d5d0ee1
-2026-08-17-fork-registry-and-pi-ai-chance-builds.zh.md: d2c7415ca2062a8c08a1d30ffd10e1b5977c25be
+2026-08-17-fork-registry-and-pi-ai-chance-builds.md: dbd718f4f37e684c49b561c6f72850d3337efc2a
+2026-08-17-fork-registry-and-pi-ai-chance-builds.zh.md: 6a0a8fedf7fb8276d7c3cdd3df1d48c4efec027a

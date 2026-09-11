@@ -17,6 +17,7 @@ import {
 } from '../client-build-environment.ts'
 import { PUBLIC_EXPERIMENTAL_PACKAGE_DIRECTORIES } from '../experimental-package-policy.ts'
 import { validateTarballPayload } from '../publication-payload.ts'
+import { prereleaseDistTag } from './registry.ts'
 
 /**
  * Dependency sections a consumer must publish after, because npm resolves them
@@ -293,7 +294,7 @@ export abstract class ReleaseFamily {
    * @returns `next` for a prerelease, or undefined so npm uses `latest`.
    */
   distTagForVersion(version: string): string | undefined {
-    return version.includes('-') ? 'next' : undefined
+    return prereleaseDistTag(version)
   }
 
   /**

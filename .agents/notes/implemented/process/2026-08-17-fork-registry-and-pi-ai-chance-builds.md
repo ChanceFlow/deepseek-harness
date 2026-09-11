@@ -12,17 +12,23 @@ Two facts about this layout are not visible from the repository alone, and the r
 
 ## Decision
 
-### pi-ai 0.84.2-chance.0, pinned exactly
+### pi-ai 0.85.1-chance.0, pinned exactly
 
 The pi-ai upgrade from 0.82.1 exists for the Anthropic streaming fix: 0.82.1 hardcodes `thinking: ""` and `thinkingSignature: ""` on `content_block_start`, so gateways that emit complete thinking blocks at block start lose the reasoning content and the signature outright. 0.84.1 onward reads the event's own fields. The upgrade also replaces 0.82.1's ad-hoc per-model fetch with an `options.fetch` parameter, dropping the `model.fetch` passthrough the proxy feature uses.
 
-The registry build `0.84.2-chance.0` is vanilla 0.84.2 plus the one-line `model.fetch` passthrough in the Anthropic adapter. The pnpm `patchedDependencies` entry for pi-ai is retired — the patch travels inside the registry build instead.
+The registry build `0.85.1-chance.0` is vanilla 0.85.1 plus the one-line `model.fetch` passthrough in the Anthropic adapter. The pnpm `patchedDependencies` entry for pi-ai is retired — the patch travels inside the registry build instead.
 
-The dependency is pinned `0.84.2-chance.0` without a caret, and the pin is load-bearing: `^0.84.2-chance.0` also matches the unpatched vanilla `0.84.2` mirror on the same registry, and semver orders the release above the prerelease, so a fresh install resolves to the build without the passthrough and the proxy stops working with no error anywhere. Every `-chance` build is pinned exactly.
+The dependency is pinned `0.85.1-chance.0` without a caret, and the pin is load-bearing: `^0.85.1-chance.0` also matches the unpatched vanilla `0.85.1` mirror on the same registry, and semver orders the release above the prerelease, so a fresh install resolves to the build without the passthrough and the proxy stops working with no error anywhere. Every `-chance` build is pinned exactly.
 
 ### Fork release state is committed at publish time
 
 The whole-family version bump to `-chance.N` is committed when the release is published (staging tarballs land in `dist/npm-chance-N/`, now gitignored, and the registry serves the same version as `latest`). The repo's version fields otherwise track upstream's [three independent publication sequences](2026-08-10-npm-release-sequences.md); the next fork release after upstream's `0.1.0-rc.7` is `0.1.0-rc.7-chance.0`. The Gitea `sync-upstream` workflow merges `upstream/master` into the fork's `master` every six hours and fails loudly on conflict, so a conflicted sync is resolved once by hand — the 2026-08-17 merge of upstream's rc.6/rc.7 window was such a resolution.
+
+### The native sequence is mirrored, not built
+
+`native/system/packages/*` is upstream's third publication sequence, and four dsh packages depend on its entry package, `@deepseek-ai/node-addon-system`. Because the fork's `.npmrc` routes `@deepseek-ai` to the private registry, a fork release needs that version there — but the fork cannot build it: `native/system` needs one runner per platform, macOS and a musl toolchain among them, which is what upstream's own `Node Addon System Release` workflow exists for.
+
+`scripts/release/mirror-native.ts` mirrors the version the checkout pins instead of building it, and the release workflow runs it before packing. It reads the native packages the way upstream's pack step does — `prebuilds.json` marks a platform package, and platform packages upload before the entries that optionally depend on them — then decides each one against both registries: the public tarball must hash to the integrity its own registry records, and the private registry must either lack the version (the fetched bytes are then published) or hold the same integrity (the version is skipped). A pinned version upstream has not published fails the step, naming the version; a private copy that differs from the public payload fails it too. The 2026-09-11 release mirrored these five packages by hand for exactly this reason — upstream had renamed the addon, and the private registry still held only the old `@deepseek-ai/node-addon-landlock-run` name.
 
 ### The 0.84 adaptation surface in dsh-llm-pi-ai
 
@@ -32,14 +38,16 @@ The pi-ai 0.84-only compat fields (`chatTemplateArgs`, `supportsFinishReason`, `
 
 **Keep pnpm `patchedDependencies` for pi-ai.** The patch would live in git and survive registry outages, but it coexisted with the registry's pre-patched builds for two weeks and drifted — the registry's own `0.82.1` was a patched republish while the lockfile's integrity pinned the public vanilla tarball, so which mechanism applied depended on install order. One mechanism, the registry build, removes that class of accident.
 
-**Publish only `-chance` builds to the registry and keep a caret range.** Dropping the vanilla `0.84.2` mirror would make `^0.84.2-chance.0` resolve to a patched build, but the mirror is what lets a LAN machine install pi-ai without public npm access, and a registry contents invariant is harder to see than an exact pin in `package.json`. The pin is the smaller, in-repo fact.
+**Publish only `-chance` builds to the registry and keep a caret range.** Dropping the vanilla `0.85.1` mirror would make `^0.85.1-chance.0` resolve to a patched build, but the mirror is what lets a LAN machine install pi-ai without public npm access, and a registry contents invariant is harder to see than an exact pin in `package.json`. The pin is the smaller, in-repo fact.
 
 **Fix the setup-abort misclassification inside the `-chance` build (patch the lazy wrapper).** The wrapper's catch has no signal, so the patch would thread one through the setup closure; upstream may also reclassify setup aborts themselves. The adapter owns the caller signal and already matches pi-ai's own mid-stream tie-break (signal aborted wins over a racing provider error), so the remap lives in `adapter.ts` and the `-chance` delta stays one line.
 
 ## Consequences
 
-The fork carries a private pi-ai build that must be rebuilt on every pi-ai upgrade, and the exact pin makes each upgrade a deliberate commit rather than a lockfile drift; upstream's eventual 0.84 adoption will collide with the `baseten`/`StopReason`/abort adaptations and resolve them as no-ops. In exchange, the LAN registry serves installs with no install-time patching, the Anthropic thinking fix and the proxy passthrough reach every machine through one pinned version, and the type-level drift gates (`THINKING_FORMAT_GATE`, the `mapStopReason` switch) trip on the next pi-ai surface change on purpose.
+The fork carries a private pi-ai build that must be rebuilt on every pi-ai upgrade, and the exact pin makes each upgrade a deliberate commit rather than a lockfile drift; upstream's eventual adoption of these surfaces will collide with the `baseten`/`StopReason`/abort adaptations and resolve them as no-ops. In exchange, the LAN registry serves installs with no install-time patching, the Anthropic thinking fix and the proxy passthrough reach every machine through one pinned version, and the type-level drift gates (`THINKING_FORMAT_GATE`, the `mapStopReason` switch) trip on the next pi-ai surface change on purpose.
+
+Mirroring keeps `native/system` an upstream source tree the fork never builds, at the cost of a release step that reaches the public registry and of a release that fails rather than publishes when the checkout pins a native version upstream has not released.
 
 ## Testing
 
-`packages/llm/llm-pi-ai` passes 218 tests including the pre-abort classification tests and the `pending`/`deferred` mappings; the repository typecheck covers the drift gates.
+`packages/llm/llm-pi-ai` passes 325 tests including the pre-abort classification tests and the `pending`/`deferred` mappings; the repository typecheck covers the drift gates. `scripts/release/mirror-native.spec.ts` covers native package discovery, the platform-first upload order, and the one-version baseline.

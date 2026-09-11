@@ -12,17 +12,23 @@ Status: implemented
 
 ## 决策
 
-### pi-ai 0.84.2-chance.0，精确钉版
+### pi-ai 0.85.1-chance.0，精确钉版
 
 从 0.82.1 升级 pi-ai 是为了 Anthropic 流式修复：0.82.1 在 `content_block_start` 上硬编码 `thinking: ""` 与 `thinkingSignature: ""`，凡是把完整 thinking 块直接放在块起始事件里的网关，推理内容和签名都会被整体丢弃。0.84.1 起改读事件自带的字段。这次升级同时把 0.82.1 的临时 per-model fetch 换成了 `options.fetch` 参数，丢掉了 proxy 功能所依赖的 `model.fetch` 透传。
 
-私服构建 `0.84.2-chance.0` 等于原版 0.84.2 加 Anthropic 适配器里那一行 `model.fetch` 透传。pi-ai 的 pnpm `patchedDependencies` 条目随之退役——补丁改由私服构建携带。
+私服构建 `0.85.1-chance.0` 等于原版 0.85.1 加 Anthropic 适配器里那一行 `model.fetch` 透传。pi-ai 的 pnpm `patchedDependencies` 条目随之退役——补丁改由私服构建携带。
 
-依赖钉在 `0.84.2-chance.0`，不带 caret，而且这个钉版是承重的：`^0.84.2-chance.0` 同样匹配同一私服上未打补丁的原版 `0.84.2` 镜像，而 semver 把 release 排在 prerelease 之前，全新安装会解析到没有透传的构建，proxy 无声失效且没有任何报错。每个 `-chance` 构建都必须精确钉版。
+依赖钉在 `0.85.1-chance.0`，不带 caret，而且这个钉版是承重的：`^0.85.1-chance.0` 同样匹配同一私服上未打补丁的原版 `0.85.1` 镜像，而 semver 把 release 排在 prerelease 之前，全新安装会解析到没有透传的构建，proxy 无声失效且没有任何报错。每个 `-chance` 构建都必须精确钉版。
 
 ### fork 发版状态在发布时提交
 
 全家桶 `-chance.N` 版本号 bump 在发布时一并提交（staging tarball 落在 `dist/npm-chance-N/`，现已 gitignore，私服同时以 `latest` 提供同一版本）。除此之外仓库版本号跟随 upstream 的[三条独立发布序列](2026-08-10-npm-release-sequences.zh.md)；upstream `0.1.0-rc.7` 之后的下一个 fork 版本是 `0.1.0-rc.7-chance.0`。Gitea 的 `sync-upstream` workflow 每 6 小时把 `upstream/master` 合入 fork 的 `master`，冲突即显式失败，因此冲突同步由人工一次性解决——2026-08-17 对 upstream rc.6/rc.7 窗口的合并就是一次这样的解决。
+
+### native 序列走镜像而非本地构建
+
+`native/system/packages/*` 是 upstream 的第三条发布序列，而四个 dsh 包依赖它的入口包 `@deepseek-ai/node-addon-system`。fork 的 `.npmrc` 把 `@deepseek-ai` 指向私服，因此 fork 发版必须让该版本先落到私服——但 fork 自己造不出来：`native/system` 每个平台各需一个 runner，其中还有 macOS 与 musl 工具链，这正是 upstream 自己的 `Node Addon System Release` workflow 存在的理由。
+
+`scripts/release/mirror-native.ts` 因此只镜像 checkout 钉住的版本而不本地构建，release workflow 在打包前运行它。它按 upstream 打包步骤的同一套约定读取 native 包——带 `prebuilds.json` 的是平台包，平台包先于可选依赖它们的入口包上传——再对每个包在两个 registry 上分别判定：公共 tarball 的哈希必须等于它自己 registry 记录的 integrity，私服要么没有该版本（此时把取到的字节发布上去），要么记录的 integrity 相同（此时跳过该版本）。checkout 钉住而 upstream 从未发布的版本会让这一步失败并报出版本号；私服上与公共 payload 内容不同的副本同样失败。2026-09-11 那次发版正是因此手工镜像了这五个包——upstream 改了 addon 名，而私服上只有旧的 `@deepseek-ai/node-addon-landlock-run`。
 
 ### dsh-llm-pi-ai 的 0.84 适配面
 
@@ -32,14 +38,16 @@ pi-ai 0.84 独有的 compat 字段（`chatTemplateArgs`、`supportsFinishReason`
 
 **继续用 pnpm `patchedDependencies` 给 pi-ai 打补丁。** 补丁放在 git 里、不惧私服故障，但它与私服预打补丁的构建并存了两周并发生了漂移——私服上的 `0.82.1` 是打过补丁的重发布，而 lockfile 的 integrity 却钉着公共原版 tarball，哪套机制生效取决于安装顺序。只留私服构建这一套机制，消除了这类事故。
 
-**只往私服发 `-chance` 构建并保留 caret 范围。** 撤掉原版 `0.84.2` 镜像后 `^0.84.2-chance.0` 会解析到打补丁的构建，但镜像正是内网机器不需要公共 npm 就能装 pi-ai 的依靠，而且「私服内容不变式」比 `package.json` 里的精确钉版更难被看见。钉版是更小、就在仓库里的事实。
+**只往私服发 `-chance` 构建并保留 caret 范围。** 撤掉原版 `0.85.1` 镜像后 `^0.85.1-chance.0` 会解析到打补丁的构建，但镜像正是内网机器不需要公共 npm 就能装 pi-ai 的依靠，而且「私服内容不变式」比 `package.json` 里的精确钉版更难被看见。钉版是更小、就在仓库里的事实。
 
 **在 `-chance` 构建内部修 setup-abort 误分类（补惰性包装器）。** 包装器的 catch 拿不到 signal，补丁得把 signal 穿进 setup 闭包；upstream 也可能自己重新归类 setup abort。适配器持有调用方 signal，且本来就在跟随 pi-ai 自己的流中裁决（signal 已 abort 胜过竞态的 provider 错误），因此重映射放在 `adapter.ts`，`-chance` 的差异保持一行。
 
 ## 后果
 
-fork 背上了一个每次升级 pi-ai 都要重建的私有构建，精确钉版让每次升级都成为一次郑重的提交而非 lockfile 漂移；upstream 将来采用 0.84 时会撞上 `baseten`/`StopReason`/abort 这些适配，届时它们作为无操作解决。换来的是：内网私服的安装不需要任何安装期补丁，Anthropic thinking 修复和 proxy 透传通过一个钉死的版本到达每台机器，而类型级漂移门禁（`THINKING_FORMAT_GATE`、`mapStopReason` 的 switch）会在下一次 pi-ai 面变化时按设计跳闸。
+fork 背上了一个每次升级 pi-ai 都要重建的私有构建，精确钉版让每次升级都成为一次郑重的提交而非 lockfile 漂移；upstream 将来采用这些面时会撞上 `baseten`/`StopReason`/abort 这些适配，届时它们作为无操作解决。换来的是：内网私服的安装不需要任何安装期补丁，Anthropic thinking 修复和 proxy 透传通过一个钉死的版本到达每台机器，而类型级漂移门禁（`THINKING_FORMAT_GATE`、`mapStopReason` 的 switch）会在下一次 pi-ai 面变化时按设计跳闸。
+
+镜像让 `native/system` 保持为 fork 从不构建的 upstream 源码树，代价是发版多了一步访问公共 registry，以及当 checkout 钉住 upstream 尚未发布的 native 版本时发版失败而不是照常发布。
 
 ## 测试
 
-`packages/llm/llm-pi-ai` 通过 218 个测试，含 pre-abort 归类测试与 `pending`/`deferred` 映射；仓库 typecheck 覆盖漂移门禁。
+`packages/llm/llm-pi-ai` 通过 325 个测试，含 pre-abort 归类测试与 `pending`/`deferred` 映射；仓库 typecheck 覆盖漂移门禁。`scripts/release/mirror-native.spec.ts` 覆盖 native 包发现、平台包优先的上传顺序与单版本基线。

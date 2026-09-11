@@ -1,6 +1,7 @@
-# Fork release: tag dsh-v* triggers build -> pack -> publish to the Gitea npm
-# registry -> latest dist-tag, then auto-deploys staging (:3081, source
-# checkout). Production (:3080) is NOT touched here — use deploy.yml manually.
+# Fork release: tag dsh-v* triggers build -> mirror the pinned native packages
+# -> pack -> publish to the Gitea npm registry -> latest dist-tag, then
+# auto-deploys staging (:3081, source checkout). Production (:3080) is NOT
+# touched here — use deploy.yml manually.
 # Registries are reached directly (npmmirror + the Gitea npm registry); the
 # host ~/.npmrc's localhost proxy is unreachable inside job containers, so the
 # job generates /root/.npmrc from the mounted token only.
@@ -40,6 +41,13 @@ jobs:
         run: pnpm run build:official
       - name: Verify the release set
         run: pnpm exec tsx scripts/release/verify.ts --family dsh
+      # The fork cannot build native/system (one runner per platform), so the
+      # version this checkout pins is mirrored from the public registry before
+      # anything is published: four dsh packages install it, and a consumer
+      # must never resolve a release whose addon the registry lacks. The source
+      # is npmmirror, the registry this job already installs from.
+      - name: Mirror the pinned native addon packages
+        run: pnpm exec tsx scripts/release/mirror-native.ts --source https://registry.npmmirror.com
       - name: Pack
         run: pnpm exec tsx scripts/release/pack.ts --family dsh --out dist/npm-release
       - name: Publish to the fork registry
