@@ -51,11 +51,12 @@
 
 ## D5: fork 发版体系
 
-行为：全家族以 `<upstream 版本>-chance.N` 发布到本地 Gitea 私服（`http://<gitea-host>:3000/api/packages/ChanceFlow/npm/`，由 gitignore 的本地 `.npmrc` 指向）；发版时的版本 bump 与 lockfile 同时提交；lockfile 策略为"以 upstream 解析为基底 + fork 增量（pi-ai 钉版、undici）"，避免 dev 依赖漂移；`/dist/`、`/apps/cli/dist/` 为发版 staging 产物，已 gitignore。
-目的：内网部署不经公共 npm；fork 版本与 upstream 公开发版同库共存不冲突。
-提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）、`11b77d8f8d`（内网与组织名迁移，含 registry 端点）。
+行为：全家族以 `<upstream 版本>-chance.N` 发布到本地 Gitea 私服（`http://<gitea-host>:3000/api/packages/ChanceFlow/npm/`，由 gitignore 的本地 `.npmrc` 指向）；发版时的版本 bump 与 lockfile 同时提交；lockfile 策略为"以 upstream 解析为基底 + fork 增量（pi-ai 钉版、undici）"，避免 dev 依赖漂移；`/dist/`、`/apps/cli/dist/` 为发版 staging 产物，已 gitignore；`native/system` 序列不在 fork 内构建——`pnpm run release:mirror-native` 把 checkout 钉住的 `@deepseek-ai/node-addon-system` 版本从公共 registry 镜像进私服（平台包先于入口包；公共 tarball 的字节必须与公共 registry 记录的 integrity 一致，私服已有版本也必须记录同一 integrity），release workflow 在打包前自动执行，取代此前的手工镜像。
+目的：内网部署不经公共 npm；fork 版本与 upstream 公开发版同库共存不冲突；四个 dsh 包依赖的 native addon 随每次发版自动到位，不再依赖人工记忆。
+提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）、`11b77d8f8d`（内网与组织名迁移，含 registry 端点）、`a87175f078`（native 镜像步骤）。
+文件：`scripts/release/{registry,mirror-native}.ts`、`scripts/release/mirror-native.spec.ts`、`.gitea/workflows/release.yml`。
 细节：[fork registry 与 pi-ai chance 构建](.agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md)；用户接入与版本鉴别见 [REGISTRY.md](REGISTRY.md)。
-同步注意：版本号冲突（rc.2 实测 230 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；registry 组织名必须以注册表规范大小写 `ChanceFlow` 书写（Gitea 路由不分大小写，但 pnpm 的 tarball 供应链校验区分大小写，lockfile/workflow 里的小写 `chanceflow` 会被 `[ERR_PNPM_TARBALL_URL_MISMATCH]` 拒绝）；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）。
+同步注意：版本号冲突（rc.2 实测 230 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；registry 组织名必须以注册表规范大小写 `ChanceFlow` 书写（Gitea 路由不分大小写，但 pnpm 的 tarball 供应链校验区分大小写，lockfile/workflow 里的小写 `chanceflow` 会被 `[ERR_PNPM_TARBALL_URL_MISMATCH]` 拒绝）；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）；镜像脚本按 `native/system/packages/*`（`prebuilds.json` 标记平台包）自动跟随 upstream 的改名与新增，但 checkout 钉住的 native 版本若 upstream 尚未发布，release 会在镜像步骤失败并报出版本号，此时应等 upstream 发布或用 `--source` 指定实际承载该版本的 registry。
 
 ## D6: upstream 自动同步 workflow
 
@@ -67,8 +68,8 @@
 
 ## D7: 本地 CI/CD 流水线
 
-行为：四条 Gitea Actions 流水线。`check.yml`（master push/PR：typecheck + llm-pi-ai/client-connection 套件 + registry 探针）；`release.yml`（tag `dsh-v*`：构建→打包→发布全家族→latest dist-tag→自动重部署 staging :3081，不碰生产）；`deploy.yml`（`git push origin master:deploy-prod` 即手动生产部署按钮，装 latest 并重启 :3080）；`host-smoke.yml`（`git push origin master:ci-host-smoke` 冒烟 host runner）。
+行为：四条 Gitea Actions 流水线。`check.yml`（master push/PR：typecheck + llm-pi-ai/client-connection 套件 + registry 探针）；`release.yml`（tag `dsh-v*`：构建→镜像 native 包（`release:mirror-native`，见 D5）→打包→发布全家族→latest dist-tag→自动重部署 staging :3081，不碰生产）；`deploy.yml`（`git push origin master:deploy-prod` 即手动生产部署按钮，装 latest 并重启 :3080）；`host-smoke.yml`（`git push origin master:ci-host-smoke` 冒烟 host runner）。
 目的：发版与检查全自动；生产部署保留人工门。
 运行环境：容器 runner（act_runner 容器，`ubuntu-latest` 标签，job 容器 `node:22-bookworm` + 禁 IPv6 + pnpm store 卷 `~/.cache/ci-pnpm`）+ host runner（`dsh-host` 标签，systemd user 单元 `act-runner-host`，做部署类 job）。job 内 `.npmrc` 现场生成（只含 scope 路由 + token）——宿主 `~/.npmrc` 的 `proxy=http://localhost:7890/` 在容器内指向容器自身，绝不能整文件挂载；runner 配置的 `envs:` 会覆盖 workflow env，故代理类变量全部由 workflow 自管。
-提交：`a829ceacaf` 起的 `.gitea/workflows/` 系列。
+提交：`a829ceacaf` 起的 `.gitea/workflows/` 系列（`a87175f078` 为 release 加入 native 镜像步骤）。
 同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。release 的 staging 部署会把本仓库检出到 tag 的 detached HEAD——后续开发先 `git checkout master`。workflow 内 git/npm 端点随 `11b77d8f8d` 迁到 `<gitea-host>`/`ChanceFlow`，且 job 内现场生成 `.npmrc` 的 scope 路由必须用规范大小写（见 D5）。
