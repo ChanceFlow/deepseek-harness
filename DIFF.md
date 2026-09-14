@@ -23,7 +23,7 @@
 目的：本部署就是 LAN IP + http，不引入 TLS。
 提交：`7e2a93c9c5`（browserUuid 回退）、`1d03929344` + `6c7840ab13`（UUID：randomUUID 优先，getRandomValues 兜底——后者修复了绕开 schedule 测试 mock 的回归）、`54b4d5fbf5`（AbortError→cancelled）。
 文件：`packages/client/ui-conversation/src/client/service.ts`、`packages/host/apiproxy/src/fetch/client.ts`、`packages/llm/llm/src/message.ts`、`packages/client/runtime/src/client/sessions/session.ts`、`packages/host/apiproxy/src/api/rpc.ts`。
-同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。rc.2（540c0cf5bb）upstream 改动了 `service.ts`/`rpc.ts`，合入后 browserUuid 回退与 cancelled 语义已核对仍成立。0.1.2-rc.1 合入：upstream 官方引入 `@deepseek-ai/dsh-util-crypto` 并落地全仓 lint 规则，统一解决非安全上下文 UUID 问题；`apiproxy` 与 `client-runtime` 已被 upstream 重构解耦，browserUuid 与旧 rpc.ts 子项并入 upstream。
+同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。rc.2（540c0cf5bb）upstream 改动了 `service.ts`/`rpc.ts`，合入后 browserUuid 回退与 cancelled 语义已核对仍成立。0.1.2-rc.1 合入：upstream 官方引入 `@deepseek-ai/dsh-util-crypto` 并落地全仓 lint 规则，统一解决非安全上下文 UUID 问题；`apiproxy` 与 `client-runtime` 已被 upstream 重构解耦，browserUuid 与旧 rpc.ts 子项并入 upstream。0.1.5-rc.2 合入：upstream 重构 `ClientTransportHooks`（新增 `rpc?`、`fetch` 变为可选），与本条 `isLanHostname` 落在同一文件的不同 hunk，git 自动合并无冲突；合入后已复核 LAN 主机名仍计入 `isLoopback`。
 
 ## D2: 特权方法不再限定 loopback
 
@@ -39,7 +39,7 @@
 目的：`claude.p1.cn` 等端点必须经 LAN clash 代理才可达；服务绑定 LAN。
 提交：`6eafb8e59a`（实现）、`1f638eaa0c`（表单断言测试）、`8731a9fa42`（config-catalog 入册）、`3691d75540`（代理注释地址迁移到 <proxy-host>）。
 文件：`packages/llm/llm-pi-ai/src/{provider,config}.ts`、`packages/client/ui-settings-models/src/client/{CustomProviderCard,ProviderEditor}.tsx`、`packages/bundle/web-app/src/startup.ts`、`apps/cli`。
-同步注意：`proxy` 是 fork 私有配置面；upstream 若引入同名能力以 upstream 为准并重新评估 D4 的 model.fetch 依赖。rc.2（540c0cf5bb）upstream 改动了 `config.ts`/`provider.ts`/`startup.ts`，合入后 proxy 与任意 `--host` 已核对仍成立。0.1.2-rc.1 合入：`llm-pi-ai` `provider.ts`、`config.ts`、`ui-settings-models` 等文件的 proxy 及 `--host` 逻辑已完整保留并通过全量单测。0.1.5-rc.1 合入：upstream 重构了 `resolveProfiles` 与 `buildProvider` 错误诊断机制，`CustomProviderCard` 与 `config.ts` 的 `proxy` 透传逻辑已完整适配并保留。
+同步注意：`proxy` 是 fork 私有配置面；upstream 若引入同名能力以 upstream 为准并重新评估 D4 的 model.fetch 依赖。rc.2（540c0cf5bb）upstream 改动了 `config.ts`/`provider.ts`/`startup.ts`，合入后 proxy 与任意 `--host` 已核对仍成立。0.1.2-rc.1 合入：`llm-pi-ai` `provider.ts`、`config.ts`、`ui-settings-models` 等文件的 proxy 及 `--host` 逻辑已完整保留并通过全量单测。0.1.5-rc.1 合入：upstream 重构了 `resolveProfiles` 与 `buildProvider` 错误诊断机制，`CustomProviderCard` 与 `config.ts` 的 `proxy` 透传逻辑已完整适配并保留。0.1.5-rc.2 合入：upstream 改了生成物 `docs/config-catalog.*`，但生成器 `scripts/gen-config-catalog.ts` 未变，`proxy` 条目核对仍在。
 
 ## D4: pi-ai 0.85.1-chance.0 钉版与 0.85 适配
 
@@ -56,7 +56,7 @@
 提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）、`11b77d8f8d`（内网与组织名迁移，含 registry 端点）、`a87175f078`（native 镜像步骤）。
 文件：`scripts/release/{registry,mirror-native}.ts`、`scripts/release/mirror-native.spec.ts`、`.gitea/workflows/release.yml`。
 细节：[fork registry 与 pi-ai chance 构建](.agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md)；用户接入与版本鉴别见 [REGISTRY.md](REGISTRY.md)。
-同步注意：版本号冲突（rc.2 实测 230 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；registry 组织名必须以注册表规范大小写 `ChanceFlow` 书写（Gitea 路由不分大小写，但 pnpm 的 tarball 供应链校验区分大小写，lockfile/workflow 里的小写 `chanceflow` 会被 `[ERR_PNPM_TARBALL_URL_MISMATCH]` 拒绝）；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）；镜像脚本按 `native/system/packages/*`（`prebuilds.json` 标记平台包）自动跟随 upstream 的改名与新增，但 checkout 钉住的 native 版本若 upstream 尚未发布，release 会在镜像步骤失败并报出版本号，此时应等 upstream 发布或用 `--source` 指定实际承载该版本的 registry。
+同步注意：版本号冲突（rc.2 实测 230 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；registry 组织名必须以注册表规范大小写 `ChanceFlow` 书写（Gitea 路由不分大小写，但 pnpm 的 tarball 供应链校验区分大小写，lockfile/workflow 里的小写 `chanceflow` 会被 `[ERR_PNPM_TARBALL_URL_MISMATCH]` 拒绝）；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）；镜像脚本按 `native/system/packages/*`（`prebuilds.json` 标记平台包）自动跟随 upstream 的改名与新增，但 checkout 钉住的 native 版本若 upstream 尚未发布，release 会在镜像步骤失败并报出版本号，此时应等 upstream 发布或用 `--source` 指定实际承载该版本的 registry。0.1.5-rc.2 合入：272 个 `package.json` 的版本冲突统一取 upstream `0.1.5-rc.2`，无源码冲突；自动合并的 `pnpm-lock.yaml` 经 `pnpm install` 校验无需再对齐。
 
 ## D6: upstream 自动同步 workflow
 
