@@ -40,18 +40,18 @@ jobs:
       - name: Build the family (official client profile)
         run: pnpm run build:official
       - name: Verify the release set
-        run: pnpm run release:verify -- --family dsh
+        run: pnpm run release:verify --family dsh
       # The fork cannot build native/system (one runner per platform), so the
       # version this checkout pins is mirrored from the public registry before
       # anything is published: four dsh packages install it, and a consumer
       # must never resolve a release whose addon the registry lacks. The source
       # is npmmirror, the registry this job already installs from.
       - name: Mirror the pinned native addon packages
-        run: pnpm run release:mirror-native -- --source https://registry.npmmirror.com
+        run: pnpm run release:mirror-native --source https://registry.npmmirror.com
       - name: Pack
-        run: pnpm run release:pack -- --family dsh --out dist/npm-release
+        run: pnpm run release:pack --family dsh --out dist/npm-release
       - name: Publish to the fork registry
-        run: pnpm run release:publish -- --family dsh --from dist/npm-release
+        run: pnpm run release:publish --family dsh --from dist/npm-release
       - name: Point the latest dist-tag at every member
         run: |
           version=$(grep -m1 '"version"' package.json | sed -E 's/.*"version": "([^"]+)".*/\1/')
