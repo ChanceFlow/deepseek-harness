@@ -102,13 +102,6 @@ export interface PiAiProviderProfile {
   /** Endpoint for this route's models; defaults to the installed catalog's endpoint. */
   baseURL?: string
   /**
-   * HTTP(S) proxy URL for this provider's outbound requests (e.g.
-   * `http://127.0.0.1:7890`). When set, every request this route makes goes
-   * through that proxy — for the Anthropic Messages protocol this overrides
-   * the fact that @anthropic-ai/sdk ignores HTTP(S)_PROXY env vars.
-   */
-  proxy?: string
-  /**
    * This route's model catalog. Omission serves the installed catalog for the
    * route unchanged; an explicit list replaces it, each entry defaulting its
    * unset fields from the installed model of the same id.
@@ -342,7 +335,6 @@ const profile = z.object({
   thinkingBudgets,
   cacheRetention: z.union(['none', 'short', 'long']),
   transport: z.union(['sse', 'websocket', 'websocket-cached', 'auto']),
-  proxy: z.string(),
   timeoutMs: z.natural(),
   websocketConnectTimeoutMs: z.natural(),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
@@ -484,7 +476,6 @@ export function resolveProfiles(
         displayName,
         ...source.api === undefined ? {} : { api: source.api },
         ...source.baseURL === undefined ? {} : { baseURL: source.baseURL },
-        ...source.proxy === undefined ? {} : { proxy: source.proxy },
         models: catalog.models,
         namesCredential: source.apiKeyEnv !== undefined,
       })

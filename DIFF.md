@@ -11,8 +11,8 @@
 |---|---|---|---|
 | [D1](#d1-lan-非安全上下文兼容) | client / apiproxy / llm | 让浏览器经 LAN IP 的 `http://` 访问成为一等公民 | `7e2a93c9c5` `1d03929344` `6c7840ab13` `54b4d5fbf5` `74009195aa` |
 | [D2](#d2-特权方法不再限定-loopback) | client-connection | settings/credentials/agentPreset 方法跟随 trusted-host 栅栏而非限死 loopback | `3671721245` `1f638eaa0c` |
-| [D3](#d3-per-provider-proxy-与任意-web-host) | llm-pi-ai / web | 每条 provider 路由可选 HTTP(S) 代理；`dsh web` 接受任意 `--host` | `6eafb8e59a` `1f638eaa0c` `8731a9fa42` |
-| [D4](#d4-pi-ai-0851-chance0-钉版与-085-适配) | llm-pi-ai | pi-ai 用私服补丁构建并精确钉版，适配 0.85 类型面 | `108dec0913` `528823ee39` `45ba30bf52` |
+| [D3](#d3-任意-web-host) | web | `dsh web` 接受任意 `--host`（含 `0.0.0.0`）与局域网 Host 白名单 | `6eafb8e59a` `1f638eaa0c` `8731a9fa42` |
+| [D4](#d4-已退役-pi-ai-chance-私服构建) | llm-pi-ai | 已退役：proxy 移除后切回官方原版 `^0.85.1` | `108dec0913` `528823ee39` `45ba30bf52` |
 | [D5](#d5-fork-发版体系) | 全仓库 | `-chance.N` 版本号、Gitea 私服发布、lockfile 对齐策略 | `108dec0913` `45ba30bf52` `74009195aa` `ef6daef5b8` |
 | [D6](#d6-upstream-自动同步-workflow) | Gitea | 每 6 小时自动 merge upstream，冲突即显式失败 | `496c1d4bfc` |
 | [D7](#d7-本地-cicd-流水线) | Gitea Actions | check/release/生产部署/host 冒烟四条流水线 | `a829ceacaf` 起 |
@@ -33,21 +33,20 @@
 文件：`packages/client/connection/src/index.ts`、`packages/client/connection/tests/node-half.host.spec.ts`。
 同步注意：upstream 未改 `connection/src/index.ts` 时不冲突；若 upstream 重构特权方法表，按"跟随 trusted-host"的语义重放。rc.2（540c0cf5bb）upstream 改动了该文件，合入后特权方法跟随 trusted-host 栅栏已核对仍成立。0.1.2-rc.1 合入：upstream 官方以 `BrowserAuth` Cookie 统一全部 RPC 方法鉴权，彻底移除了特权方法仅限 loopback 的旧限制，D2 已被 upstream 完全吸收。
 
-## D3: per-provider proxy 与任意 web host
+## D3: 任意 web host
 
-行为：`llm-pi-ai` 的 provider 路由新增 `proxy` 字段（如 `http://<proxy-host>:7890`），设置后该路由每个模型的出站请求经 undici `ProxyAgent` 代理——含 Anthropic Messages 协议（依赖 D4 私服构建的 `model.fetch` 透传）；`dsh web` 接受任意 `--host`（含 `0.0.0.0`）。
-目的：`claude.p1.cn` 等端点必须经 LAN clash 代理才可达；服务绑定 LAN。
-提交：`6eafb8e59a`（实现）、`1f638eaa0c`（表单断言测试）、`8731a9fa42`（config-catalog 入册）、`3691d75540`（代理注释地址迁移到 <proxy-host>）。
-文件：`packages/llm/llm-pi-ai/src/{provider,config}.ts`、`packages/client/ui-settings-models/src/client/{CustomProviderCard,ProviderEditor}.tsx`、`packages/bundle/web-app/src/startup.ts`、`apps/cli`。
-同步注意：`proxy` 是 fork 私有配置面；upstream 若引入同名能力以 upstream 为准并重新评估 D4 的 model.fetch 依赖。rc.2（540c0cf5bb）upstream 改动了 `config.ts`/`provider.ts`/`startup.ts`，合入后 proxy 与任意 `--host` 已核对仍成立。0.1.2-rc.1 合入：`llm-pi-ai` `provider.ts`、`config.ts`、`ui-settings-models` 等文件的 proxy 及 `--host` 逻辑已完整保留并通过全量单测。0.1.5-rc.1 合入：upstream 重构了 `resolveProfiles` 与 `buildProvider` 错误诊断机制，`CustomProviderCard` 与 `config.ts` 的 `proxy` 透传逻辑已完整适配并保留。0.1.5-rc.2 合入：upstream 改了生成物 `docs/config-catalog.*`，但生成器 `scripts/gen-config-catalog.ts` 未变，`proxy` 条目核对仍在。
+行为：`dsh web` 接受任意 `--host`（含 `0.0.0.0`），且局域网 IP / `.local` 访问通过 `isLanHostname` 校验纳入可信访问。此前曾附带 per-provider proxy 特性，现已随 EasyTier 直连调通而退役清理，仅保留 Web host 绑定与 LAN 访问支持。
+目的：服务需要绑定 LAN 供局域网设备直接访问。
+提交：`6eafb8e59a`（host 实现）、`1f638eaa0c`（测试）。
+文件：`packages/bundle/web-app/src/startup.ts`、`packages/client/connection/src/loopback-hostname.ts`、`apps/cli`。
+同步注意：合并时核对 `--host 0.0.0.0` 拦截移除与 `isLanHostname` 仍成立。
 
-## D4: pi-ai 0.85.1-chance.0 钉版与 0.85 适配
+## D4: (已退役) pi-ai chance 私服构建
 
-行为：`@earendil-works/pi-ai` 精确钉版私服构建 `0.85.1-chance.0`（原版 0.85.1 + Anthropic 适配器一行 `model.fetch` 透传）；适配层把 0.84/0.85 兼容字段在上游 disposition gate 中分类、映射新 `StopReason`、支持 ProxyAgent。
-目的：0.84/0.85 修复了 Anthropic 网关在 `content_block_start` 携带完整 thinking 块时内容/签名被清零的 bug（p1 路由必需）；钉版防止 `^` 范围解析到同私服上无补丁的原版镜像。
-提交：`108dec0913`（钉版+发版）、`528823ee39`（0.84 适配）、`45ba30bf52`（lockfile 策略）。
-文件：`packages/llm/llm-pi-ai/src/{catalog,stream,adapter}.ts`、`packages/llm/llm-pi-ai/package.json`。
-同步注意：upstream 升级到 `^0.85.1`；0.1.5-rc.1 合入：fork 侧对 0.85.1 重新打包并发布 `0.85.1-chance.0` 私服构建并精确钉版，保留 `undici` 依赖以支持 D3 的 proxy，测试全绿。
+行为：已退役销账。此前因 per-provider `proxy` 需求曾钉版私服构建 `0.85.1-chance.0`（补丁一行 `model.fetch`），在确认 EasyTier VPN 下所有节点均可裸连 `claude.p1.cn`、且全局 env 代理已由上游 `dsh-http-proxy` 统一接管后，代码全面移除 `proxy` 字段，依赖已完全切回官方原版 `^0.85.1`。不再需要私服单独打包与维护 chance 构建。
+目的：消除外部私服依赖分支，保持与 upstream 依赖一致。
+文件：`packages/llm/llm-pi-ai/package.json`。
+同步注意：保持官方 `^0.85.1`，后续随 upstream 自动升级，无需再维护 patch。
 
 ## D5: fork 发版体系
 
