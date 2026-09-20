@@ -47,7 +47,7 @@
 行为：已退役销账。此前因 per-provider `proxy` 需求曾钉版私服构建 `0.85.1-chance.0`（补丁一行 `model.fetch`），在确认 EasyTier VPN 下所有节点均可裸连 `claude.p1.cn`、且全局 env 代理已由上游 `dsh-http-proxy` 统一接管后，代码全面移除 `proxy` 字段，依赖已完全切回官方原版 `^0.85.1`。不再需要私服单独打包与维护 chance 构建。
 目的：消除外部私服依赖分支，保持与 upstream 依赖一致。
 文件：`packages/llm/llm-pi-ai/package.json`。
-同步注意：保持官方 `^0.85.1`，后续随 upstream 自动升级，无需再维护 patch。
+同步注意：保持官方 `^0.85.1`，后续随 upstream 自动升级，无需再维护 patch。私服上 `@earendil-works/pi-ai` 的 `latest` dist-tag 曾被留在 `0.85.1-chance.0`，已改指最新镜像的公共发布 `0.86.1`；Gitea 不支持 `npm deprecate`，退役构建仍列在版本表但 `latest` 与公共版本范围都到不了它。
 
 ## D5: fork 发版体系
 
@@ -81,3 +81,11 @@
 提交：本次 chance.2 提交。
 文件：`packages/llm/llm-pi-ai/src/replay.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`、`.agents/notes/implemented/bug-fix/2026-09-20-pi-ai-alias-thinking-replay.md`。
 同步注意：这是 upstream 尚未修复的缺陷，合并 upstream 时若其 `replay.ts` 仍把 `responseModel` 当身份恢复，需重放本差异；若 upstream 自行修复，删除本条并核对 `convert.spec.ts` 断言方向。该注部分取代 [pi-ai 升级兼容性](.agents/notes/implemented/bug-fix/2026-09-05-pi-ai-upgrade-compatibility.md) 的回放来源段落，两处已互相链接。
+
+## D9: 缺失 thinking 的工具调用轮次补空块
+
+行为：`packages/llm/llm-pi-ai/src/replay.ts` 的 `toPiAssistant` 在路由声明 `compat.allowEmptySignature` 时维持回传不变量——被重放且含工具调用的 assistant 轮次必须携带 thinking 块。持久轮次没有记录 reasoning 时前置 `{type:'thinking', thinking:'', thinkingSignature:'dsh-synthetic-thinking'}`；只记录了一个文本为空且无签名的 thinking 块时补上同一占位签名。块文本始终为空，模型可见内容没有增加。
+目的：p1 网关在 thinking 模式下要求每条含 `tool_use` 的 assistant 消息回传 thinking（实测：缺块 400；空文本或缺签名的块 200；纯文本轮次不需要）。provider 有时根本不返回 reasoning（重放已部署子 agent 的请求形态，10/10 没有 thinking 内容块），跨 provider 会话里的 Gemini 轮次又把 thinking 放在 `thoughtSignature` 而 pi-ai 转换时会丢弃；这两种形态都无法用 pi-ai 自身开关修好。删除 `thinking` 请求字段同样无效——端点默认 thinking 开启，只有显式 `{"type":"disabled"}` 才关闭该模式。
+提交：本次提交。
+文件：`packages/llm/llm-pi-ai/src/replay.ts`、`packages/llm/llm-pi-ai/src/context.ts`、`packages/llm/llm-pi-ai/src/adapter.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`、`.agents/notes/implemented/bug-fix/2026-09-21-pi-ai-held-thinking-on-tool-calls.md`。
+同步注意：upstream 未修（0.86.1 的两处守卫未变）。合并时若 upstream 的 `transform-messages`/`anthropic-messages` 已能保留空 thinking 块，可删除本条并让 `holdThinkingOnToolCalls` 只保留 pi-ai 仍未覆盖的部分。`allowEmptySignature` 既是 pi-ai 的保留开关，也是本行为的触发条件，改其语义需同时核对两处。跨 provider 轮次仍不在覆盖内：pi-ai 会拍平外来消息上的空 thinking 块，因此混 provider 历史的请求仍可能被拒。

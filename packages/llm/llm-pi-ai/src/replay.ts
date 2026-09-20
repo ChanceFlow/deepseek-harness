@@ -184,8 +184,48 @@ function foreignAssistant(message: Message): AssistantMessage {
   }
 }
 
+/**
+ * Placeholder signature for the thinking block this adapter synthesizes when a
+ * tool-call turn carries no reasoning.
+ *
+ * Anthropic-compatible thinking mode rejects a request whose assistant
+ * tool-call turn omits the thinking block, and pi-ai drops an empty-text
+ * thinking block that has no signature. A non-empty placeholder is therefore
+ * what keeps the block on the wire; the synthetic block's text stays empty, so
+ * nothing model-visible is added.
+ */
+const SYNTHETIC_THINKING_SIGNATURE = 'dsh-synthetic-thinking'
+
+/**
+ * Hold the passback invariant such an endpoint enforces: every tool-call
+ * assistant turn reaching the wire must carry a thinking block.
+ *
+ * The turn either recorded no reasoning block at all — the provider returned
+ * none, or it carries thinking in a provider-native field instead — or recorded
+ * an empty one without a signature; pi-ai drops both.
+ * @param content - reconstructed pi-ai assistant content, mutated in place.
+ */
+function holdThinkingOnToolCalls(content: AssistantMessage['content']): void {
+  if (!content.some(block => block.type === 'toolCall')) return
+  const recorded = content.filter(block => block.type === 'thinking')
+  if (recorded.length === 0) {
+    content.unshift({ type: 'thinking', thinking: '', thinkingSignature: SYNTHETIC_THINKING_SIGNATURE })
+    return
+  }
+  for (const block of recorded) {
+    if (block.thinking.trim().length === 0 && (block.thinkingSignature ?? '').trim().length === 0) {
+      block.thinkingSignature = SYNTHETIC_THINKING_SIGNATURE
+    }
+  }
+}
+
 /** Recombine durable Harness content with validated pi-ai replay metadata. */
-function replayedAssistant(message: Message, source: ModelMessageSource, rawState: unknown): AssistantMessage {
+function replayedAssistant(
+  message: Message,
+  source: ModelMessageSource,
+  rawState: unknown,
+  holdThinking: boolean,
+): AssistantMessage {
   const state = readReplayState(rawState)
   if (state.response.provider !== source.provider) return invalidReplay('provider does not match assistant source')
   if (state.response.model !== source.model) return invalidReplay('model does not match assistant source')
@@ -216,6 +256,7 @@ function replayedAssistant(message: Message, source: ModelMessageSource, rawStat
       default: return invalidReplay(`block ${index} has an unsupported Harness type`)
     }
   })
+  if (holdThinking) holdThinkingOnToolCalls(content)
   return {
     role: 'assistant',
     content,
@@ -247,13 +288,21 @@ function replayedAssistant(message: Message, source: ModelMessageSource, rawStat
  * @param message - assistant content with required source and optional adapter-owned replay metadata.
  * @param onDegrade - called with the diagnostic reason when an unusable replay
  *   state falls back to provider-neutral conversion.
+ * @param holdThinking - whether the target route requires every tool-call turn
+ *   to carry a thinking block; see {@link holdThinkingOnToolCalls}. Provider-neutral
+ *   degradation leaves it unapplied: pi-ai drops an empty thinking block from a
+ *   foreign message regardless, so synthesizing one there cannot reach the wire.
  * @returns a native pi-ai assistant message reconstructed from durable content.
  */
-export function toPiAssistant(message: Message, onDegrade?: (reason: string) => void): AssistantMessage {
+export function toPiAssistant(
+  message: Message,
+  onDegrade?: (reason: string) => void,
+  holdThinking = false,
+): AssistantMessage {
   const source = message.source
   if (source.kind !== 'model' || source.replayState === undefined) return foreignAssistant(message)
   try {
-    return replayedAssistant(message, source, source.replayState)
+    return replayedAssistant(message, source, source.replayState, holdThinking)
   } catch (error: unknown) {
     /* v8 ignore next -- replayedAssistant throws only INVALID_REPLAY_STATE LlmErrors; the
        guard keeps a future non-replay failure loud instead of silently degrading it */

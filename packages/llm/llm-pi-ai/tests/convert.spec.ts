@@ -1017,3 +1017,80 @@ describe('toStreamChunks defensive branches', () => {
     expect(chunks[0]).toEqual({ type: 'tool-call-delta', index: 0, id: '', argumentsDelta: '{}' })
   })
 })
+
+describe('toPiContext held thinking on tool-call turns', () => {
+  const nativeToolCall = { type: 'toolCall', id: 'c1', name: 'bash', arguments: { command: 'pwd' } } as const
+  const synthetic = { type: 'thinking', thinking: '', thinkingSignature: 'dsh-synthetic-thinking' } as const
+  const toolCall: ContentBlock = { type: 'tool-call', id: ToolCallId('c1'), name: 'bash', arguments: '{"command":"pwd"}' }
+
+  function durable(replayContent: AssistantMessage['content']): unknown {
+    return JSON.parse(JSON.stringify(toPiReplayState(assistant({
+      api: 'anthropic-messages',
+      provider: 'p1',
+      model: 'deepseek-flash',
+      stopReason: 'toolUse',
+      content: replayContent,
+    }))))
+  }
+
+  function context(content: ContentBlock[], replayState: unknown, holdThinking: boolean) {
+    return toPiContext({
+      provider: 'p1',
+      model: 'deepseek-flash',
+      messages: [createMessage({
+        role: 'assistant',
+        content,
+        source: { kind: 'model', provider: 'p1', model: 'deepseek-flash', replayState },
+      })],
+    }, undefined, undefined, holdThinking)
+  }
+
+  // The endpoint rejects a request whose assistant tool-call turn omits the
+  // thinking block, and pi-ai drops an empty-text block without a signature, so
+  // the synthesized signature is what carries the block to the wire.
+  const catalogModel = getBuiltinModels('anthropic')[0]
+  if (catalogModel === undefined) throw new Error('missing Anthropic catalog model')
+  const requested = { ...catalogModel, id: 'deepseek-flash', provider: 'p1' }
+
+  it('synthesizes an empty thinking block when the provider recorded no reasoning', () => {
+    const replayed = context([toolCall], durable([nativeToolCall]), true)
+    expect(replayed.messages[0]).toMatchObject({ content: [synthetic, nativeToolCall] })
+    expect(transformMessages(replayed.messages, requested)[0]).toMatchObject({ content: [synthetic, nativeToolCall] })
+  })
+
+  it('leaves the turn as the provider recorded it when the route does not hold thinking', () => {
+    expect(context([toolCall], durable([nativeToolCall]), false).messages[0]).toMatchObject({
+      content: [nativeToolCall],
+    })
+  })
+
+  it('repairs an empty recording that carries no signature', () => {
+    const replayContent = [{ type: 'thinking' as const, thinking: '' }, nativeToolCall]
+    expect(context([{ type: 'reasoning', text: '' }, toolCall], durable(replayContent), true).messages[0])
+      .toMatchObject({ content: [synthetic, nativeToolCall] })
+  })
+
+  it('keeps recorded reasoning and its signature untouched', () => {
+    const replayContent = [{ type: 'thinking' as const, thinking: 'why', thinkingSignature: 'sig' }, nativeToolCall]
+    expect(context([{ type: 'reasoning', text: 'why' }, toolCall], durable(replayContent), true).messages[0])
+      .toMatchObject({ content: [{ type: 'thinking', thinking: 'why', thinkingSignature: 'sig' }, nativeToolCall] })
+  })
+
+  it('adds no thinking block to a turn without tool calls', () => {
+    expect(context([{ type: 'text', text: 'done' }], durable([{ type: 'text', text: 'done' }]), true).messages[0])
+      .toMatchObject({ content: [{ type: 'text', text: 'done' }] })
+  })
+
+  it('adds none to provider-neutral history, which pi-ai flattens regardless', () => {
+    const context = toPiContext({
+      provider: 'p1',
+      model: 'deepseek-flash',
+      messages: [createMessage({
+        role: 'assistant',
+        content: [toolCall],
+        source: { kind: 'model', provider: 'p1', model: 'deepseek-flash' },
+      })],
+    }, undefined, undefined, true)
+    expect(context.messages[0]).toMatchObject({ api: 'dsh-foreign', content: [nativeToolCall] })
+  })
+})

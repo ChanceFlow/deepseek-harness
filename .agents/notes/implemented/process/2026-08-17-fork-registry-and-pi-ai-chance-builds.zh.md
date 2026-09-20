@@ -8,17 +8,21 @@ Status: implemented
 
 本 checkout 是部署在内网的私有 fork，其 npm registry 是一个 Gitea 包仓库（`http://<gitea-host>:3000/api/packages/ChanceFlow/npm/`）。根目录 `.npmrc`——按设计被 gitignore——把 `@deepseek-ai` 与 `@earendil-works` 两个 scope 指向该私服，安装因此不依赖公共 npm 的可达性。fork 在 upstream 版本号后追加 `-chance.N` 后缀发布自己的版本（`0.1.0-rc.6-chance.1`），而 upstream 的公开发版（`0.1.0-rc.7`）以 `next` dist-tag 并存于同一私服。
 
-这个布局有两个事实单看仓库看不出来，而 2026-08-17 的发版状态又没提交，导致后来的会话只能靠取证式 diff 重新发现它们。其一，私服上除 fork 打过补丁的 `-chance` 重建版外，还镜像了公共 pi-ai 的原版发布（`0.82.1`、`0.84.1`、`0.84.2`）。其二，fork 的 `dsh-llm-pi-ai` 依赖一个任何 upstream 版本都没有的 pi-ai 能力：Anthropic 适配器认 per-model `model.fetch`，per-provider `proxy` 路由字段需要它（给路由上每个模型挂 undici `ProxyAgent` 绑定的 fetch；走 `claude.p1.cn` 的 `p1` 路由离不开它）。
+这个布局有两个事实单看仓库看不出来，而 2026-08-17 的发版状态又没提交，导致后来的会话只能靠取证式 diff 重新发现它们。其一，私服上除 fork 打过补丁的 `-chance` 重建版外，还镜像了公共 pi-ai 的原版发布（`0.82.1`、`0.84.1`、`0.84.2`、`0.85.1`、`0.86.1`）。其二，fork 的 `dsh-llm-pi-ai` 曾依赖一个任何 upstream 版本都没有的 pi-ai 能力：Anthropic 适配器认 per-model `model.fetch`，per-provider `proxy` 路由字段需要它。两者均已退役；该依赖现在是一个公共版本范围。
 
 ## 决策
 
-### pi-ai 0.85.1-chance.0，精确钉版
+### pi-ai 走镜像，不本地构建
 
-从 0.82.1 升级 pi-ai 是为了 Anthropic 流式修复：0.82.1 在 `content_block_start` 上硬编码 `thinking: ""` 与 `thinkingSignature: ""`，凡是把完整 thinking 块直接放在块起始事件里的网关，推理内容和签名都会被整体丢弃。0.84.1 起改读事件自带的字段。这次升级同时把 0.82.1 的临时 per-model fetch 换成了 `options.fetch` 参数，丢掉了 proxy 功能所依赖的 `model.fetch` 透传。
+私服逐字镜像了本 checkout 消费的公共 pi-ai 发布（`0.82.1`、`0.84.1`、`0.84.2`、`0.85.1`、`0.86.1`），每个都与公共 registry 记录的 integrity 核对过，因此内网机器无需公共 npm 即可安装 pi-ai。`dsh-llm-pi-ai` 以 caret 范围依赖公共线（`^0.85.1`），fork 不再对 pi-ai 打任何补丁。
 
-私服构建 `0.85.1-chance.0` 等于原版 0.85.1 加 Anthropic 适配器里那一行 `model.fetch` 透传。pi-ai 的 pnpm `patchedDependencies` 条目随之退役——补丁改由私服构建携带。
+0.82.1 → 0.84.1 那次升级所对应的 Anthropic 流式修复，仍然是依赖不能更旧的原因：0.82.1 在 `content_block_start` 上硬编码 `thinking: ""` 与 `thinkingSignature: ""`，凡是把完整 thinking 块直接放在块起始事件里的网关，推理内容和签名都会被整体丢弃，而 0.84.1 起改读事件自带的字段。
 
-依赖钉在 `0.85.1-chance.0`，不带 caret，而且这个钉版是承重的：`^0.85.1-chance.0` 同样匹配同一私服上未打补丁的原版 `0.85.1` 镜像，而 semver 把 release 排在 prerelease 之前，全新安装会解析到没有透传的构建，proxy 无声失效且没有任何报错。每个 `-chance` 构建都必须精确钉版。
+Anthropic 适配器里那一行 `model.fetch` 透传只为 per-route `proxy` 字段存在，而 0.84.1 的 `options.fetch` 参数早已取代了它所需要的 per-model fetch。proxy 字段、它的 `undici` 依赖与 `0.85.1-chance.0` 构建一同退役，早于该构建的 pnpm `patchedDependencies` 条目也一样。
+
+需要精确钉版的 pi-ai `-chance` 重建版保持退役：semver 把 release 排在 prerelease 之前，`^0.85.1-chance.0` 同样匹配同一私服上未打补丁的 `0.85.1` 镜像，全新安装会无声解析到没有透传的构建。fork 自己的 `-chance` 发版继续精确钉版；pi-ai 依赖则是公共版本范围。
+
+私服上 `@earendil-works/pi-ai` 的 `latest` dist-tag 曾被留在 `0.85.1-chance.0`，于是任何 `latest` 解析——`npm i @earendil-works/pi-ai`，或任何允许 prerelease 的依赖范围——都会装上 fork 的私有构建。现在它指向最新的公共镜像发布（`0.86.1`）；Gitea 的 npm registry 不支持 `npm deprecate`，因此该退役构建仍列在版本表中，但 `latest` 与公共版本范围都到不了它。该依赖存在所服务的行为记录在 [为 provider 未给出签名的工具调用轮次保留 thinking 块](../bug-fix/2026-09-21-pi-ai-held-thinking-on-tool-calls.zh.md)。
 
 ### fork 发版状态在发布时提交
 
@@ -44,10 +48,10 @@ pi-ai 0.84 独有的 compat 字段（`chatTemplateArgs`、`supportsFinishReason`
 
 ## 后果
 
-fork 背上了一个每次升级 pi-ai 都要重建的私有构建，精确钉版让每次升级都成为一次郑重的提交而非 lockfile 漂移；upstream 将来采用这些面时会撞上 `baseten`/`StopReason`/abort 这些适配，届时它们作为无操作解决。换来的是：内网私服的安装不需要任何安装期补丁，Anthropic thinking 修复和 proxy 透传通过一个钉死的版本到达每台机器，而类型级漂移门禁（`THINKING_FORMAT_GATE`、`mapStopReason` 的 switch）会在下一次 pi-ai 面变化时按设计跳闸。
+内网私服的安装不需要任何安装期补丁，pi-ai 以未修改的公共发布到达每台机器，因此 fork 不再每次升级都重建私有 pi-ai 构建：pi-ai 依赖是镜像公共版本的 caret 范围，而 fork 自己的发版继续精确钉版 `-chance`。upstream 将来采用这些面时会撞上 `baseten`/`StopReason`/abort 这些适配，届时作为无操作解决；类型级漂移门禁（`THINKING_FORMAT_GATE`、`mapStopReason` 的 switch）会在下一次 pi-ai 面变化时按设计跳闸。
 
 镜像让 `native/system` 保持为 fork 从不构建的 upstream 源码树，代价是发版多了一步访问公共 registry，以及当 checkout 钉住 upstream 尚未发布的 native 版本时发版失败而不是照常发布。
 
 ## 测试
 
-`packages/llm/llm-pi-ai` 通过 325 个测试，含 pre-abort 归类测试与 `pending`/`deferred` 映射；仓库 typecheck 覆盖漂移门禁。`scripts/release/mirror-native.spec.ts` 覆盖 native 包发现、平台包优先的上传顺序与单版本基线。
+`packages/llm/llm-pi-ai` 通过 331 个测试，含 pre-abort 归类测试与 `pending`/`deferred` 映射；仓库 typecheck 覆盖漂移门禁。`scripts/release/mirror-native.spec.ts` 覆盖 native 包发现、平台包优先的上传顺序与单版本基线。

@@ -8,17 +8,21 @@ English | [中文](2026-08-17-fork-registry-and-pi-ai-chance-builds.zh.md)
 
 This checkout is a private fork deployed on a LAN whose npm registry is a Gitea package registry (`http://<gitea-host>:3000/api/packages/ChanceFlow/npm/`). The root `.npmrc` — deliberately gitignored — routes the `@deepseek-ai` and `@earendil-works` scopes to that registry, so installs never depend on public npm reachability. The fork publishes its own releases there with a `-chance.N` suffix on upstream's version (`0.1.0-rc.6-chance.1`), while upstream's public releases (`0.1.0-rc.7`) sit on the same registry under the `next` dist-tag.
 
-Two facts about this layout are not visible from the repository alone, and the release state of 2026-08-17 was left uncommitted, so a later session had to rediscover them by forensic diffing. First, the registry also carries verbatim mirrors of public pi-ai releases (`0.82.1`, `0.84.1`, `0.84.2`) alongside the fork's patched `-chance` rebuilds. Second, the fork's `dsh-llm-pi-ai` depends on a pi-ai capability no upstream release has: the Anthropic adapter honoring per-model `model.fetch`, which the per-provider `proxy` route field needs (undici `ProxyAgent`-bound fetch on every model of a route; the `p1` route over `claude.p1.cn` requires it).
+Two facts about this layout are not visible from the repository alone, and the release state of 2026-08-17 was left uncommitted, so a later session had to rediscover them by forensic diffing. First, the registry also carries verbatim mirrors of public pi-ai releases (`0.82.1`, `0.84.1`, `0.84.2`, `0.85.1`, `0.86.1`) alongside the fork's patched `-chance` rebuilds. Second, the fork's `dsh-llm-pi-ai` once depended on a pi-ai capability no upstream release had: the Anthropic adapter honoring per-model `model.fetch`, which the per-provider `proxy` route field needed. Both are retired, and the dependency is a public version range.
 
 ## Decision
 
-### pi-ai 0.85.1-chance.0, pinned exactly
+### pi-ai is mirrored, not built
 
-The pi-ai upgrade from 0.82.1 exists for the Anthropic streaming fix: 0.82.1 hardcodes `thinking: ""` and `thinkingSignature: ""` on `content_block_start`, so gateways that emit complete thinking blocks at block start lose the reasoning content and the signature outright. 0.84.1 onward reads the event's own fields. The upgrade also replaces 0.82.1's ad-hoc per-model fetch with an `options.fetch` parameter, dropping the `model.fetch` passthrough the proxy feature uses.
+The registry carries verbatim mirrors of the public pi-ai releases this checkout consumes (`0.82.1`, `0.84.1`, `0.84.2`, `0.85.1`, `0.86.1`), each verified against the integrity its public registry records, so a LAN machine installs pi-ai with no public npm access. `dsh-llm-pi-ai` depends on the public line with a caret range (`^0.85.1`), and nothing in the fork patches pi-ai.
 
-The registry build `0.85.1-chance.0` is vanilla 0.85.1 plus the one-line `model.fetch` passthrough in the Anthropic adapter. The pnpm `patchedDependencies` entry for pi-ai is retired — the patch travels inside the registry build instead.
+The Anthropic streaming fix that motivated the 0.82.1 → 0.84.1 upgrade is still why the dependency is not older: 0.82.1 hardcodes `thinking: ""` and `thinkingSignature: ""` on `content_block_start`, so a gateway that emits complete thinking blocks at block start loses the reasoning content and the signature outright, while 0.84.1 onward reads the event's own fields.
 
-The dependency is pinned `0.85.1-chance.0` without a caret, and the pin is load-bearing: `^0.85.1-chance.0` also matches the unpatched vanilla `0.85.1` mirror on the same registry, and semver orders the release above the prerelease, so a fresh install resolves to the build without the passthrough and the proxy stops working with no error anywhere. Every `-chance` build is pinned exactly.
+The one-line `model.fetch` passthrough in the Anthropic adapter existed only for the per-route `proxy` field, and 0.84.1's `options.fetch` parameter had already replaced the per-model fetch it needed. The proxy field, its `undici` dependency, and the `0.85.1-chance.0` build are retired together, as is the pnpm `patchedDependencies` entry that preceded the build.
+
+An exactly pinned `-chance` rebuild of pi-ai stays retired: semver orders a release above its prerelease, so `^0.85.1-chance.0` also matched the unpatched `0.85.1` mirror on the same registry and a fresh install silently resolved to the build without the passthrough. The fork's own `-chance` releases keep their exact pins; the pi-ai dependency is a public version range.
+
+The registry's `latest` dist-tag for `@earendil-works/pi-ai` had been left on `0.85.1-chance.0`, so any `latest` resolution — `npm i @earendil-works/pi-ai`, or a dependency range that admits prereleases — installed the fork's private build. It now names the newest mirrored public release (`0.86.1`); Gitea's npm registry rejects `npm deprecate`, so the retired build stays listed but unreachable from both `latest` and the public version range. The behavior the dependency exists for is recorded in [holding a thinking block on the tool-call turns a provider left unsigned](../bug-fix/2026-09-21-pi-ai-held-thinking-on-tool-calls.md).
 
 ### Fork release state is committed at publish time
 
@@ -44,10 +48,10 @@ The pi-ai 0.84-only compat fields (`chatTemplateArgs`, `supportsFinishReason`, `
 
 ## Consequences
 
-The fork carries a private pi-ai build that must be rebuilt on every pi-ai upgrade, and the exact pin makes each upgrade a deliberate commit rather than a lockfile drift; upstream's eventual adoption of these surfaces will collide with the `baseten`/`StopReason`/abort adaptations and resolve them as no-ops. In exchange, the LAN registry serves installs with no install-time patching, the Anthropic thinking fix and the proxy passthrough reach every machine through one pinned version, and the type-level drift gates (`THINKING_FORMAT_GATE`, the `mapStopReason` switch) trip on the next pi-ai surface change on purpose.
+The LAN registry serves installs with no install-time patching, and pi-ai reaches every machine as an unmodified public release, so the fork no longer rebuilds pi-ai on every upgrade: the pi-ai dependency is a caret range over mirrored public versions, while the fork's own releases keep their exact `-chance` pins. Upstream's eventual adoption of these surfaces will collide with the `baseten`/`StopReason`/abort adaptations and resolve them as no-ops. The type-level drift gates (`THINKING_FORMAT_GATE`, the `mapStopReason` switch) trip on the next pi-ai surface change on purpose.
 
 Mirroring keeps `native/system` an upstream source tree the fork never builds, at the cost of a release step that reaches the public registry and of a release that fails rather than publishes when the checkout pins a native version upstream has not released.
 
 ## Testing
 
-`packages/llm/llm-pi-ai` passes 325 tests including the pre-abort classification tests and the `pending`/`deferred` mappings; the repository typecheck covers the drift gates. `scripts/release/mirror-native.spec.ts` covers native package discovery, the platform-first upload order, and the one-version baseline.
+`packages/llm/llm-pi-ai` passes 331 tests including the pre-abort classification tests and the `pending`/`deferred` mappings; the repository typecheck covers the drift gates. `scripts/release/mirror-native.spec.ts` covers native package discovery, the platform-first upload order, and the one-version baseline.
