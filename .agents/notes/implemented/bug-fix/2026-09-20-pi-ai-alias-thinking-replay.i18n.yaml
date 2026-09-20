@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-20-pi-ai-alias-thinking-replay.md
+2026-09-20-pi-ai-alias-thinking-replay.md: 1c04543d72b9b83a5a85f75cee6c83a64f94c3b1
+2026-09-20-pi-ai-alias-thinking-replay.zh.md: 663102223482f35394307114aad11c560446c385

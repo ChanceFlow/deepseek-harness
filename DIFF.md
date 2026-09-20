@@ -16,6 +16,7 @@
 | [D5](#d5-fork-发版体系) | 全仓库 | `-chance.N` 版本号、Gitea 私服发布、lockfile 对齐策略 | `108dec0913` `45ba30bf52` `74009195aa` `ef6daef5b8` |
 | [D6](#d6-upstream-自动同步-workflow) | Gitea | 每 6 小时自动 merge upstream，冲突即显式失败 | `496c1d4bfc` |
 | [D7](#d7-本地-cicd-流水线) | Gitea Actions | check/release/生产部署/host 冒烟四条流水线 | `a829ceacaf` 起 |
+| [D8](#d8-别名-answer-按请求模型回放) | llm-pi-ai | 别名作答的 Anthropic 轮次按请求模型身份回放，保住 thinking 回传 | 待填（chance.2） |
 
 ## D1: LAN 非安全上下文兼容
 
@@ -71,4 +72,12 @@
 目的：发版与检查全自动；生产部署保留人工门。
 运行环境：容器 runner（act_runner 容器，`ubuntu-latest` 标签，job 容器 `node:22-bookworm` + 禁 IPv6 + pnpm store 卷 `~/.cache/ci-pnpm`）+ host runner（`dsh-host` 标签，systemd user 单元 `act-runner-host`，做部署类 job）。job 内 `.npmrc` 现场生成（只含 scope 路由 + token）——宿主 `~/.npmrc` 的 `proxy=http://localhost:7890/` 在容器内指向容器自身，绝不能整文件挂载；runner 配置的 `envs:` 会覆盖 workflow env，故代理类变量全部由 workflow 自管。
 提交：`a829ceacaf` 起的 `.gitea/workflows/` 系列（`a87175f078` 为 release 加入 native 镜像步骤）。
-同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。release 的 staging 部署会把本仓库检出到 tag 的 detached HEAD——后续开发先 `git checkout master`。workflow 内 git/npm 端点随 `11b77d8f8d` 迁到 `<gitea-host>`/`ChanceFlow`，且 job 内现场生成 `.npmrc` 的 scope 路由必须用规范大小写（见 D5）。
+同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。release 的 staging 部署会把本仓库检出到 tag 的 detached HEAD——后续开发先 `git checkout master`。workflow 内 git/npm 端点随 `11b77d8f8d` 迁到 `<gitea-host>`/`ChanceFlow`，且 job 内现场生成 `.npmrc` 的 scope 路由必须用规范大小写（见 D5）。发布脚本必须经 `pnpm run release:*` 调用（不能 `pnpm exec tsx scripts/release/*.ts`），否则 `npm_execpath` 缺失会让 `scripts/pnpm-invocation.ts` 直接报错；经 `pnpm run` 时选项直接跟脚本名，不要多余的 `--`。
+
+## D8: 别名 answer 按请求模型回放
+
+行为：`packages/llm/llm-pi-ai/src/replay.ts` 的 `replayedAssistant` 用请求模型 id（`response.model`）设置回放 assistant 消息的 `model`，把端点上报的别名留在 `responseModel`（仅信息用途）。pi-ai 的 `transformMessages` 以 `assistantMsg.model === model.id` 判定同模型续写；此前 fork 与 upstream 都把别名恢复成 `model`，导致别名作答（p1 网关的 `deepseek-v4-1-flash-260910`、Anthropic 日期别名/fallback）被读成外来历史，thinking 块被降级为 text，网关随即报 `The content[].thinking in the thinking mode must be passed back to the API.`。
+目的：p1 网关的 thinking 必须原样回传；该故障间歇出现（报告别名的那条后端路径必失败，报告请求 id 的路径正常），且 `compat.allowEmptySignature` 无法覆盖（该开关在同模型分支之后才生效）。
+提交：本次 chance.2 提交。
+文件：`packages/llm/llm-pi-ai/src/replay.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`、`.agents/notes/implemented/bug-fix/2026-09-20-pi-ai-alias-thinking-replay.md`。
+同步注意：这是 upstream 尚未修复的缺陷，合并 upstream 时若其 `replay.ts` 仍把 `responseModel` 当身份恢复，需重放本差异；若 upstream 自行修复，删除本条并核对 `convert.spec.ts` 断言方向。该注部分取代 [pi-ai 升级兼容性](.agents/notes/implemented/bug-fix/2026-09-05-pi-ai-upgrade-compatibility.md) 的回放来源段落，两处已互相链接。

@@ -676,7 +676,7 @@ describe('toStreamChunks', () => {
     ['claude-haiku-4-5', 'claude-haiku-4-5-20251001'],
     ['claude-fable-5', 'claude-opus-5'],
     ['claude-opus-5', 'claude-opus-5'],
-  ])('replays Anthropic request %s with native response model %s', async (requestedModel, returnedModel) => {
+  ])('replays Anthropic request %s answered as %s under the requested identity', async (requestedModel, returnedModel) => {
     const native = assistant({
       api: 'anthropic-messages', provider: 'anthropic', model: returnedModel,
       providerThinkingLevel: 'high',
@@ -700,18 +700,28 @@ describe('toStreamChunks', () => {
       })],
     }, undefined, onDegrade)
     expect(onDegrade).not.toHaveBeenCalled()
+    // The replayed identity is the requested model, never the reported alias:
+    // pi-ai decides same-model continuation by `message.model === model.id`, so
+    // an alias in this field reads the turn as foreign history and drops its
+    // thinking block. The reported name stays informational in `responseModel`.
     expect(context.messages[0]).toMatchObject({
-      api: 'anthropic-messages', model: returnedModel, providerThinkingLevel: 'high',
+      api: 'anthropic-messages', model: requestedModel, providerThinkingLevel: 'high',
+      ...requestedModel === returnedModel ? {} : { responseModel: returnedModel },
       content: native.content,
     })
     const catalog = getBuiltinModels('anthropic')
     const requested = catalog.find(model => model.id === requestedModel)
+    if (requested === undefined) throw new Error('missing Anthropic catalog model')
+    // Same-model continuation keeps the signed thinking block even when the
+    // endpoint answered under another name.
+    expect(transformMessages(context.messages, requested)[0]).toMatchObject({ content: native.content })
     const returned = catalog.find(model => model.id === returnedModel)
-    if (requested === undefined || returned === undefined) throw new Error('missing Anthropic catalog model')
-    expect(transformMessages(context.messages, returned)[0]).toMatchObject({ content: native.content })
-    expect(transformMessages(context.messages, requested)[0]).toMatchObject({
-      content: requestedModel === returnedModel ? native.content : [{ type: 'text', text: 'reason' }],
-    })
+    if (requestedModel !== returnedModel && returned !== undefined) {
+      // A genuinely different model is still foreign history.
+      expect(transformMessages(context.messages, returned)[0]).toMatchObject({
+        content: [{ type: 'text', text: 'reason' }],
+      })
+    }
   })
 
   const partialWithToolCall = assistant({
