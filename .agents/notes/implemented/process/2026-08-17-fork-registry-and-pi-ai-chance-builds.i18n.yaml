@@ -1,6 +1,34 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-17-fork-registry-and-pi-ai-chance-builds.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md
-2026-08-17-fork-registry-and-pi-ai-chance-builds.md: 00a03facac5d929b9d54c59e0b2c318d0d5f85d1
-2026-08-17-fork-registry-and-pi-ai-chance-builds.zh.md: d0d169964b8e2cf1c33bfcd04e44c75103ba59b6
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds:
+  en: a7ac0476455f8476
+  zh: e16cd449263f5c64
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/problem:
+  en: a964d6724823b328
+  zh: 137a7f045462af4c
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/decision:
+  en: a15c7c13f167e5ac
+  zh: 63bcc2ef60c2f344
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/decision/pi-ai-is-mirrored-not-built:
+  en: 6719c39b5cb22a41
+  zh: 27e2dd727d31556f
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/decision/fork-release-state-is-committed-at-publish-time:
+  en: de71ca7ff8abe80e
+  zh: 5146248124e4cf59
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/decision/the-pinned-public-deepseek-ai-packages-are-mirrored-not-built:
+  en: 43c53cae662ad0fe
+  zh: b0076756e718aecf
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/decision/the-0-84-adaptation-surface-in-dsh-llm-pi-ai:
+  en: cabd32f2250d96f6
+  zh: 4c8da44d534cac9a
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/alternatives-considered:
+  en: d6f16267bce6a24f
+  zh: ca21e27be34a73b4
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/consequences:
+  en: 17baf0e0f705016b
+  zh: 6788c133a04d2d8f
+/agent-note-fork-registry-releases-and-the-pi-ai-chance-builds/testing:
+  en: fd254214022304bf
+  zh: 8503c9f494620170

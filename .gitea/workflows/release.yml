@@ -41,13 +41,15 @@ jobs:
         run: pnpm run build:official
       - name: Verify the release set
         run: pnpm run release:verify --family dsh
-      # The fork cannot build native/system (one runner per platform), so the
-      # version this checkout pins is mirrored from the public registry before
-      # anything is published: four dsh packages install it, and a consumer
-      # must never resolve a release whose addon the registry lacks. The source
-      # is npmmirror, the registry this job already installs from.
-      - name: Mirror the pinned native addon packages
-        run: pnpm run release:mirror-native --source https://registry.npmmirror.com
+      # The fork builds neither native/system (one runner per platform) nor the
+      # public @deepseek-ai dependencies upstream pins, so every version this
+      # checkout pins is mirrored from the public registry before anything is
+      # published: four dsh packages install the addon, others install the
+      # pinned dependencies, and a consumer must never resolve a release whose
+      # package the registry lacks. The source is npmmirror, the registry this
+      # job already installs from.
+      - name: Mirror the pinned @deepseek-ai packages
+        run: pnpm run release:mirror-packages --source https://registry.npmmirror.com
       - name: Pack
         run: pnpm run release:pack --family dsh --out dist/npm-release
       - name: Publish to the fork registry

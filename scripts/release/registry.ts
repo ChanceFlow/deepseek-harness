@@ -97,6 +97,24 @@ export function integrityOf(tarball: string): string {
 }
 
 /**
+ * The npm arguments that read a package from one named registry.
+ *
+ * A scoped `@scope:registry` in the ambient npm configuration outranks the
+ * generic `--registry` flag, so naming another registry has to override the
+ * scope as well: without it a source read answers from the configured registry
+ * and the comparison against the source's own integrity silently checks a
+ * registry against itself.
+ * @param name - package name.
+ * @param registry - registry URL to read the package from.
+ * @returns The `--registry` flag plus the scope override for a scoped name.
+ */
+export function registrySourceArgs(name: string, registry: string): string[] {
+  const separator = name.indexOf('/')
+  const scope = name.startsWith('@') && separator > 1 ? name.slice(0, separator) : undefined
+  return ['--registry', registry, ...scope === undefined ? [] : [`--${scope}:registry=${registry}`]]
+}
+
+/**
  * Ask a registry whether a version exists, and with what integrity.
  *
  * The registry is the one the ambient npm configuration resolves the package's
@@ -109,7 +127,7 @@ export function integrityOf(tarball: string): string {
  */
 export function registryState(name: string, version: string, registry?: string): RegistryState {
   const args = ['view', `${name}@${version}`, 'dist.integrity', '--json']
-  if (registry !== undefined) args.push('--registry', registry)
+  if (registry !== undefined) args.push(...registrySourceArgs(name, registry))
   const result = attempt('npm', args)
   if (result.status !== 0) {
     const output = `${result.stdout}${result.stderr}`

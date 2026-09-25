@@ -1,11 +1,11 @@
-/** Native package discovery: the upload order and the workspace version baseline. */
+/** Mirrored package discovery: the native upload order, the lockfile pins, and the registry read arguments. */
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { nativeMembers } from './mirror-native.ts'
-import { prereleaseDistTag } from './registry.ts'
+import { lockedMembers, nativeMembers } from './mirror-packages.ts'
+import { prereleaseDistTag, registrySourceArgs } from './registry.ts'
 
 const roots: string[] = []
 
@@ -89,6 +89,71 @@ describe('native release members', () => {
 
   it('refuses a workspace with nothing to publish', () => {
     expect(() => nativeMembers(fixtureRoot())).toThrow(/no publishable native package/)
+  })
+})
+
+describe('lockfile-pinned release members', () => {
+  /** A lockfile naming one entry, its platform package, and packages outside the mirrored scope. */
+  const lockfile = [
+    "lockfileVersion: '9.0'",
+    '',
+    'packages:',
+    '',
+    "  '@deepseek-ai/office-kit-darwin-arm64@0.1.1':",
+    '    resolution: {integrity: sha512-platform}',
+    '',
+    "  '@deepseek-ai/office-kit@0.1.1':",
+    '    resolution: {integrity: sha512-entry}',
+    '',
+    "  '@deepseek-ai/linked@0.1.1':",
+    '    resolution: {directory: packages/linked, type: directory}',
+    '',
+    "  '@other/package@2.0.0':",
+    '    resolution: {integrity: sha512-other}',
+    '',
+    "  '@deepseek-ai/peered@0.1.1(react@18.3.1)':",
+    '    resolution: {integrity: sha512-peered}',
+    '',
+    'snapshots:',
+    '',
+    "  '@deepseek-ai/office-kit@0.1.1':",
+    '    optionalDependencies:',
+    "      '@deepseek-ai/office-kit-darwin-arm64': 0.1.1",
+    '',
+  ].join('\n')
+
+  it('reads each registry resolution in the mirrored scope, platform packages first', () => {
+    expect(lockedMembers(lockfile)).toEqual([
+      { name: '@deepseek-ai/office-kit-darwin-arm64', version: '0.1.1', integrity: 'sha512-platform' },
+      { name: '@deepseek-ai/office-kit', version: '0.1.1', integrity: 'sha512-entry' },
+      { name: '@deepseek-ai/peered', version: '0.1.1', integrity: 'sha512-peered' },
+    ])
+  })
+
+  it('ignores packages outside the mirrored scope and resolutions that carry no integrity', () => {
+    expect(lockedMembers(lockfile).map(member => member.name)).not.toContain('@other/package')
+    expect(lockedMembers(lockfile).map(member => member.name)).not.toContain('@deepseek-ai/linked')
+  })
+
+  it('reads an empty lockfile as no members', () => {
+    expect(lockedMembers("lockfileVersion: '9.0'\n")).toEqual([])
+  })
+})
+
+describe('registry source arguments', () => {
+  it('overrides the scope registry a scoped package would otherwise resolve through', () => {
+    expect(registrySourceArgs('@deepseek-ai/office-kit', 'https://registry.npmjs.org')).toEqual([
+      '--registry',
+      'https://registry.npmjs.org',
+      '--@deepseek-ai:registry=https://registry.npmjs.org',
+    ])
+  })
+
+  it('names only the default registry for an unscoped package', () => {
+    expect(registrySourceArgs('typescript', 'https://registry.npmjs.org')).toEqual([
+      '--registry',
+      'https://registry.npmjs.org',
+    ])
   })
 })
 
