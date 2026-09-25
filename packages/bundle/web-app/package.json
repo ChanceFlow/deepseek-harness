@@ -35,6 +35,14 @@
     "presets/ptc.patch.yml",
     "presets/minimal.patch.yml",
     "presets/cordis.patch.yml",
+    "presets/advanced.patch.yml",
+    "presets/godot.patch.yml",
+    "presets/jailbreak.patch.yml",
+    "presets/plugins/godot-backends.js",
+    "presets/plugins/jailbreak-prompt.js",
+    "presets/plugins/jailbreak-prompt.md",
+    "presets/plugins/multi-toolcall.js",
+    "presets/plugins/multi-toolcall.md",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
@@ -45,7 +53,10 @@
         "./presets/standard.patch.yml",
         "./presets/ptc.patch.yml",
         "./presets/minimal.patch.yml",
-        "./presets/cordis.patch.yml"
+        "./presets/cordis.patch.yml",
+        "./presets/advanced.patch.yml",
+        "./presets/godot.patch.yml",
+        "./presets/jailbreak.patch.yml"
       ]
     }
   },

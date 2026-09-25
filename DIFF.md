@@ -18,6 +18,7 @@
 | [D7](#d7-本地-cicd-流水线) | Gitea Actions | check/release/生产部署/host 冒烟四条流水线 | `a829ceacaf` 起 |
 | [D8](#d8-别名-answer-按请求模型回放) | llm-pi-ai | 别名作答的 Anthropic 轮次按请求模型身份回放，保住 thinking 回传 | `4676c011bc` |
 | [D9](#d9-缺失-thinking-的工具调用轮次补空块) | llm-pi-ai | 含工具调用的重放轮次补占位签名 thinking 块，满足端点回传不变量 | `afb410c1c9` |
+| [D10](#d10-fork-自带的-agent-presets) | web bundle | 三个本地 agent preset 随 fork 发版内置，默认 advanced | 待填（本次提交） |
 
 ## D1: LAN 非安全上下文兼容
 
@@ -90,3 +91,11 @@
 提交：`afb410c1c9`（实现与断言）。
 文件：`packages/llm/llm-pi-ai/src/replay.ts`、`packages/llm/llm-pi-ai/src/context.ts`、`packages/llm/llm-pi-ai/src/adapter.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`、`.agents/notes/implemented/bug-fix/2026-09-21-pi-ai-held-thinking-on-tool-calls.md`。
 同步注意：upstream 未修（0.86.1 的两处守卫未变）。合并时若 upstream 的 `transform-messages`/`anthropic-messages` 已能保留空 thinking 块，可删除本条并让 `holdThinkingOnToolCalls` 只保留 pi-ai 仍未覆盖的部分。`allowEmptySignature` 既是 pi-ai 的保留开关，也是本行为的触发条件，改其语义需同时核对两处。跨 provider 轮次仍不在覆盖内：pi-ai 会拍平外来消息上的空 thinking 块，因此混 provider 历史的请求仍可能被拒。0.1.7-rc.2 合入：upstream 重构 `context.ts`，抽出 `appendSystemOrAssistant` 统一 system/assistant 两个分支并把同步路径的用户轮次收敛为 `flattenText`，本条的 `holdThinking` 参数改由该函数透传（`toPiContext` → `textOnlyContext`/`toPiContextWithImages` → `appendSystemOrAssistant` → `appendAssistant` → `toPiAssistant`），`replay.ts` 的 `replayedAssistant`/`toPiAssistant` 同样按 upstream 新签名重放。
+
+## D10: fork 自带的 agent presets
+
+行为：fork 的 web bundle 内置三个本地 agent preset——`advanced`（标准组合 + 多 toolcall 提示段）、`godot`（标准组合 + 远程 Windows Godot 编辑器 MCP 后端）、`jailbreak`（标准组合 + 前置到 system prompt 最前端的 outcome 人格）；三者都声明在 `packages/bundle/web-app/presets/*.patch.yml` 里，默认 preset 由 `advanced.patch.yml` 末尾把 `agent-preset-registry` 的 `default` 覆盖为 `advanced`。
+目的：0.1.7 起 preset 不再是目录发现（`~/.dsh/.agent-presets/` 不再被读取），而是 profile patch 里的 `@deepseek-ai/dsh-agent-preset` 声明式行（[声明式 agent preset](.agents/notes/implemented/architecture/2026-09-18-declarative-agent-presets.md)）；这三套 preset 是每台部署都在用的能力，放在仓库里才会随发版到达每台机器，而不是每台机器手工补 profile patch。迁移前的目录式定义与实现见 `~/.dsh/.agent-presets/`（nuc）与各机器 0.1.5 时代的 profile。
+提交：本次提交。
+文件：`packages/bundle/web-app/presets/{advanced,godot,jailbreak}.patch.yml`、`packages/bundle/web-app/presets/plugins/*`、`packages/bundle/web-app/package.json`（`files` 与 `dsh.bundle.patch`）、`scripts/check-workspace-constraints.ts`（`packageFileExtras` 放行 preset 插件文件）。
+同步注意：声明式 preset **不合并** builtin 变更，每行自带完整子插件列表，因此 upstream 改动 standard 组合（增删行、改 id）时，这三个文件里复制的列表必须同步更新，否则 preset 与标准组合漂移。`godot` preset 依赖 `~/.dsh/godot-backends.yml` 与 `white-win` 这个 SSH 别名（只在 nuc 的 `~/.ssh/config` 里定义），别的机器上该 preset 会持续刷 `Could not resolve hostname white-win`，要么补别名、要么在那些机器上不选它。

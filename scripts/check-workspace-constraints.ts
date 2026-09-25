@@ -189,6 +189,15 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@deepseek-ai/dsh-client-ui-theme': ['lib/styles'],
   // The physical-key protocol is a public entry usable without the browser service.
   '@deepseek-ai/dsh-client-shortcuts': ['lib/protocol.js'],
+  // The fork's local agent presets ship their prompt plugins beside the preset
+  // patches that import them by relative path.
+  '@deepseek-ai/dsh-web-app': [
+    'presets/plugins/godot-backends.js',
+    'presets/plugins/jailbreak-prompt.js',
+    'presets/plugins/jailbreak-prompt.md',
+    'presets/plugins/multi-toolcall.js',
+    'presets/plugins/multi-toolcall.md',
+  ],
   // The CPython side ships as source .py files, published as-is rather than built.
   '@deepseek-ai/dsh-experimental-ptc-runtime-python': ['py/**/*.py'],
   '@deepseek-ai/dsh-experimental-speech-to-text-sensevoice': ['runtime/assets.json'],
