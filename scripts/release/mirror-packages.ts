@@ -3,11 +3,12 @@
  *
  * The fork's `.npmrc` routes the whole `@deepseek-ai` scope to the private
  * registry, so every `@deepseek-ai` package a fork release's consumers resolve
- * has to exist there before anything is published. Two pin sources name that
- * set: the `native/system` sequence, which the fork cannot build (one runner
- * per platform, macOS and a musl toolchain among them), and the registry
- * resolutions `pnpm-lock.yaml` records for the public `@deepseek-ai`
- * dependencies upstream added, which the fork never vendors.
+ * has to exist there before anything is published. Three pin sources name that
+ * set: the vendored Cordis packages under `vendor/`, which the fork rescopes
+ * and publishes nothing of; the `native/system` sequence, which the fork cannot
+ * build (one runner per platform, macOS and a musl toolchain among them); and
+ * the registry resolutions `pnpm-lock.yaml` records for the public
+ * `@deepseek-ai` dependencies upstream added, which the fork never vendors.
  *
  * This step mirrors each pinned version instead of building or vendoring it:
  * it fetches the public tarball unchanged and requires the private registry to
@@ -35,6 +36,9 @@ import { packedIdentity } from './tarball.ts'
 
 /** The repository-relative root of the native sequence's publishable packages. */
 const NATIVE_PACKAGES_ROOT = 'native/system/packages'
+
+/** The repository-relative root of the vendored Cordis packages. */
+const VENDOR_PACKAGES_ROOT = 'vendor'
 
 /** The package scope this step mirrors; the fork owns no other public scope. */
 const MIRRORED_SCOPE = '@deepseek-ai/'
@@ -71,6 +75,59 @@ interface LockfileShape {
   } | undefined>
 }
 
+/** One publishable workspace package, as the checkout pins it. */
+interface WorkspacePackage {
+  /** Repository-relative package directory. */
+  readonly directory: string
+  readonly name: string
+  readonly version: string
+  /** Package names this one depends on, which decide upload order. */
+  readonly dependencies: readonly string[]
+}
+
+/**
+ * Read one workspace tree's publishable `@deepseek-ai` packages.
+ *
+ * A package a fork release's consumers resolve is published by upstream, never
+ * by the fork, so the checkout's manifest is only a version pin: the private
+ * package is skipped, the scope is asserted, and the version is what the mirror
+ * looks up publicly.
+ * @param root - repository root.
+ * @param tree - repository-relative tree holding one package per directory.
+ * @returns The packages, each directory sorted by name.
+ */
+function workspacePackages(root: string, tree: string): WorkspacePackage[] {
+  const packagesRoot = join(root, tree)
+  const packages: WorkspacePackage[] = []
+  const names = readdirSync(packagesRoot, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name)
+    .sort()
+  for (const directory of names) {
+    const manifestPath = join(packagesRoot, directory, 'package.json')
+    if (!existsSync(manifestPath)) continue
+    const manifest: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
+      throw new Error(`${manifestPath} is not a JSON object`)
+    }
+    const { private: isPrivate, name, version, dependencies } = manifest as Record<string, unknown>
+    if (isPrivate === true) continue
+    if (typeof name !== 'string' || typeof version !== 'string') {
+      throw new Error(`${manifestPath} must declare string name and version`)
+    }
+    if (!name.startsWith(MIRRORED_SCOPE)) throw new Error(`${manifestPath} must name an @deepseek-ai package`)
+    packages.push({
+      directory: `${tree}/${directory}`,
+      name,
+      version,
+      dependencies: dependencies === null || typeof dependencies !== 'object'
+        ? []
+        : Object.keys(dependencies),
+    })
+  }
+  return packages
+}
+
 /**
  * Read the native sequence's publishable packages in upload order.
  *
@@ -83,39 +140,40 @@ interface LockfileShape {
  * @returns The members, platform packages first, each directory sorted by name.
  */
 export function nativeMembers(root: string): NativeMember[] {
-  const packagesRoot = join(root, NATIVE_PACKAGES_ROOT)
-  const platforms: NativeMember[] = []
-  const entries: NativeMember[] = []
-  const names = readdirSync(packagesRoot, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => entry.name)
-    .sort()
-  for (const directory of names) {
-    const manifestPath = join(packagesRoot, directory, 'package.json')
-    if (!existsSync(manifestPath)) continue
-    const manifest: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) {
-      throw new Error(`${manifestPath} is not a JSON object`)
-    }
-    const { private: isPrivate, name, version } = manifest as Record<string, unknown>
-    if (isPrivate === true) continue
-    if (typeof name !== 'string' || typeof version !== 'string') {
-      throw new Error(`${manifestPath} must declare string name and version`)
-    }
-    if (!name.startsWith(MIRRORED_SCOPE)) throw new Error(`${manifestPath} must name an @deepseek-ai package`)
-    const member: NativeMember = { directory: `${NATIVE_PACKAGES_ROOT}/${directory}`, name, version }
-    if (existsSync(join(packagesRoot, directory, 'prebuilds.json'))) platforms.push(member)
-    else entries.push(member)
-  }
-
-  const members = [...platforms, ...entries]
+  const packages = workspacePackages(root, NATIVE_PACKAGES_ROOT)
+  const platforms = packages.filter(member => existsSync(join(root, member.directory, 'prebuilds.json')))
+  const members = [...platforms, ...packages.filter(member => !platforms.includes(member))]
   if (members.length === 0) throw new Error(`${NATIVE_PACKAGES_ROOT} holds no publishable native package`)
   const versions = new Set(members.map(member => member.version))
   if (versions.size !== 1) {
     const detail = members.map(member => `${member.directory}: ${member.version}`).join('\n')
     throw new Error(`the native workspace publishes one version across its packages:\n${detail}`)
   }
-  return members
+  return members.map(({ directory, name, version }) => ({ directory, name, version }))
+}
+
+/**
+ * Read the vendored Cordis packages the checkout pins, depended-on packages
+ * first.
+ *
+ * A vendored package keeps its upstream name and version, and the fork's own
+ * release publishes none of them, so the versions its dsh packages declare as
+ * peer and runtime dependencies have to be mirrored for a consumer to install a
+ * fork release at all.
+ * @param root - repository root.
+ * @returns The members, packages another member depends on first.
+ */
+export function vendorMembers(root: string): MirroredMember[] {
+  const packages = workspacePackages(root, VENDOR_PACKAGES_ROOT)
+  if (packages.length === 0) throw new Error(`${VENDOR_PACKAGES_ROOT} holds no publishable vendored package`)
+  const names = new Set(packages.map(member => member.name))
+  const dependedOn = new Set(packages.flatMap(member => member.dependencies.filter(dependency => names.has(dependency))))
+  return packages
+    .map(({ name, version }) => ({ name, version }))
+    .sort((left, right) => (
+      Number(dependedOn.has(right.name)) - Number(dependedOn.has(left.name))
+      || left.name.localeCompare(right.name)
+    ))
 }
 
 /**
@@ -169,7 +227,7 @@ export function lockedMembers(lockfile: string): MirroredMember[] {
 }
 
 /**
- * The union of both pin sources, each pinned version once.
+ * The union of every pin source, each pinned version once.
  * @param root - repository root.
  * @returns Every member this step mirrors, lockfile members first.
  */
@@ -177,7 +235,7 @@ export function mirrorMembers(root: string): MirroredMember[] {
   const locked = lockedMembers(readFileSync(join(root, 'pnpm-lock.yaml'), 'utf8'))
   const native: MirroredMember[] = nativeMembers(root).map(({ name, version }) => ({ name, version }))
   const members = new Map<string, MirroredMember>()
-  for (const member of [...locked, ...native]) {
+  for (const member of [...locked, ...native, ...vendorMembers(root)]) {
     const key = `${member.name}@${member.version}`
     const existing = members.get(key)
     if (existing !== undefined && existing.integrity !== member.integrity) {

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { lockedMembers, nativeMembers } from './mirror-packages.ts'
+import { lockedMembers, nativeMembers, vendorMembers } from './mirror-packages.ts'
 import { prereleaseDistTag, registrySourceArgs } from './registry.ts'
 
 const roots: string[] = []
@@ -89,6 +89,55 @@ describe('native release members', () => {
 
   it('refuses a workspace with nothing to publish', () => {
     expect(() => nativeMembers(fixtureRoot())).toThrow(/no publishable native package/)
+  })
+})
+
+describe('vendored release members', () => {
+  /**
+   * Write one vendored package.
+   * @param root - fixture root.
+   * @param directory - package directory under `vendor`.
+   * @param manifest - manifest fields to write.
+   */
+  function writeVendorPackage(root: string, directory: string, manifest: Record<string, unknown>): void {
+    const packageRoot = join(root, 'vendor', directory)
+    mkdirSync(packageRoot, { recursive: true })
+    writeFileSync(join(packageRoot, 'package.json'), `${JSON.stringify(manifest)}\n`)
+  }
+
+  /**
+   * Create an empty vendored workspace fixture.
+   * @returns The fixture root.
+   */
+  function vendorRoot(): string {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-vendor-mirror-'))
+    roots.push(root)
+    mkdirSync(join(root, 'vendor'), { recursive: true })
+    return root
+  }
+
+  it('reads the packages another member depends on first', () => {
+    const root = vendorRoot()
+    writeVendorPackage(root, 'cordis', { name: '@deepseek-ai/cordis', version: '4.0.4' })
+    writeVendorPackage(root, 'plugin-group', {
+      name: '@deepseek-ai/cordis-plugin-group',
+      version: '1.0.4',
+      dependencies: { '@deepseek-ai/cordis': 'workspace:~' },
+    })
+
+    expect(vendorMembers(root)).toEqual([
+      { name: '@deepseek-ai/cordis', version: '4.0.4' },
+      { name: '@deepseek-ai/cordis-plugin-group', version: '1.0.4' },
+    ])
+  })
+
+  it('skips a private package and refuses a tree with nothing to publish', () => {
+    const root = vendorRoot()
+    writeVendorPackage(root, 'cordis', { name: '@deepseek-ai/cordis', version: '4.0.4' })
+    writeVendorPackage(root, 'draft', { name: '@deepseek-ai/cordis-draft', version: '4.0.4', private: true })
+
+    expect(vendorMembers(root).map(member => member.name)).toEqual(['@deepseek-ai/cordis'])
+    expect(() => vendorMembers(vendorRoot())).toThrow(/no publishable vendored package/)
   })
 })
 

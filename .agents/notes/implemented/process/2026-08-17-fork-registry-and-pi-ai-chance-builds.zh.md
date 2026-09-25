@@ -32,9 +32,9 @@ Anthropic 适配器里那一行 `model.fetch` 透传只为 per-route `proxy` 字
 
 `native/system/packages/*` 是 upstream 的第三条发布序列，而四个 dsh 包依赖它的入口包 `@deepseek-ai/node-addon-system`。fork 的 `.npmrc` 把 `@deepseek-ai` 指向私服，因此 fork 发版必须让该版本先落到私服——但 fork 自己造不出来：`native/system` 每个平台各需一个 runner，其中还有 macOS 与 musl 工具链，这正是 upstream 自己的 `Node Addon System Release` workflow 存在的理由。
 
-upstream 还会钉住 fork 从不 vendor 的公共 `@deepseek-ai` 包——`@deepseek-ai/libreoffice-kit` 及其平台包随 0.1.7-rc.2 一起进来——它们的要求相同：`pnpm install --frozen-lockfile` 经由被路由的 scope 解析它们，私服缺任何一个都会让安装在镜像步骤之前就失败。
+`vendor/*` 下 rescope 后的 Cordis 是第二个来源：它们保持 upstream 的名称与版本，fork 自己的发布一个都不发，而每个 dsh 包都把它们声明为 peer，因此 checkout 钉住的版本必须落到私服，消费者才装得上 fork 发版。upstream 还会钉住 fork 从不 vendor 的公共 `@deepseek-ai` 包——`@deepseek-ai/libreoffice-kit` 及其平台包随 0.1.7-rc.2 一起进来——它们的要求相同：`pnpm install --frozen-lockfile` 经由被路由的 scope 解析它们，私服缺任何一个都会让安装在镜像步骤之前就失败。
 
-`scripts/release/mirror-packages.ts` 因此把两个来源钉住的每个版本都镜像过来，而不本地构建或 vendor，release workflow 在打包前运行它。native 包按 upstream 打包步骤的同一套约定读取——带 `prebuilds.json` 的是平台包，平台包先于可选依赖它们的入口包上传；公共依赖取自 `pnpm-lock.yaml`，其 `packages` 段记录 `--frozen-lockfile` 校验的 integrity，`snapshots` 段提供同样的"被依赖者优先"顺序。随后每个包都在两个 registry 上分别判定：取到的 tarball 哈希必须等于它钉住来源记录的 integrity，私服要么没有该版本（此时把取到的字节发布上去），要么记录的 integrity 相同（此时跳过该版本）。钉住而 upstream 从未发布的版本会让这一步失败并报出版本号；私服上与钉住 payload 内容不同的副本同样失败。指定源 registry 时还必须同时覆盖 scope registry，因为 `@deepseek-ai:registry` 的优先级高于 `--registry`：否则"源"读取会落回私服，比对变成私服与自己比对。
+`scripts/release/mirror-packages.ts` 因此把三个来源钉住的每个版本都镜像过来，而不本地构建或 vendor，release workflow 在打包前运行它。vendor 包按"被别的成员依赖"排序；native 包按 upstream 打包步骤的同一套约定读取——带 `prebuilds.json` 的是平台包，平台包先于可选依赖它们的入口包上传；公共依赖取自 `pnpm-lock.yaml`，其 `packages` 段记录 `--frozen-lockfile` 校验的 integrity，`snapshots` 段提供同样的"被依赖者优先"顺序。随后每个包都在两个 registry 上分别判定：取到的 tarball 哈希必须等于它钉住来源记录的 integrity，私服要么没有该版本（此时把取到的字节发布上去），要么记录的 integrity 相同（此时跳过该版本）。钉住而 upstream 从未发布的版本会让这一步失败并报出版本号；私服上与钉住 payload 内容不同的副本同样失败。指定源 registry 时还必须同时覆盖 scope registry，因为 `@deepseek-ai:registry` 的优先级高于 `--registry`：否则"源"读取会落回私服，比对变成私服与自己比对。
 
 ### dsh-llm-pi-ai 的 0.84 适配面
 
@@ -52,7 +52,7 @@ pi-ai 0.84 独有的 compat 字段（`chatTemplateArgs`、`supportsFinishReason`
 
 内网私服的安装不需要任何安装期补丁，pi-ai 以未修改的公共发布到达每台机器，因此 fork 不再每次升级都重建私有 pi-ai 构建：pi-ai 依赖是镜像公共版本的 caret 范围，而 fork 自己的发版继续精确钉版 `-chance`。upstream 将来采用这些面时会撞上 `baseten`/`StopReason`/abort 这些适配，届时作为无操作解决；类型级漂移门禁（`THINKING_FORMAT_GATE`、`mapStopReason` 的 switch）会在下一次 pi-ai 面变化时按设计跳闸。
 
-镜像让 `native/system` 保持为 fork 从不构建的 upstream 源码树、让 upstream 钉住的公共依赖保持不被 vendor，代价是发版多了一步访问公共 registry，以及当钉住的版本 upstream 尚未发布时发版失败而不是照常发布。当私服缺少某个版本时，安装仍会在镜像步骤之前失败，因此 upstream 钉入新包后的第一次发版仍需手工镜像一次。
+镜像让 `native/system` 保持为 fork 从不构建的 upstream 源码树、让 upstream 钉住的公共依赖保持不被 vendor，代价是发版多了一步访问公共 registry，以及当钉住的版本 upstream 尚未发布时发版失败而不是照常发布。当私服缺少某个版本时，安装仍会在镜像步骤之前失败，因此 upstream 钉入新包后的第一次发版仍需手工镜像一次——0.1.7-rc.2 那次发版发出的 dsh 家族把 vendored Cordis peer 钉在 `~4.0.4`，而私服没有该版本，只有真实 `npm install -g` 才暴露出来：`release:verify-packed-install` 与 release job 自身的安装都不会解析已发布包的 peer。
 
 ## 测试
 
