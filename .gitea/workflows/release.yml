@@ -74,6 +74,11 @@ jobs:
           git fetch origin --tags --prune
           git checkout --force "refs/tags/$TAG"
           pnpm install --frozen-lockfile
+          # The source launch serves the checkout's built client bundles, and
+          # the web frontend imports their exported assets: build both faces
+          # before the frontend, or a checkout without prior build output fails
+          # on a missing package asset (2026-09-25 rc.2 release).
+          pnpm run build:lib
           pnpm run build:web
           systemctl --user restart dsh-staging
           systemctl --user is-active dsh-staging

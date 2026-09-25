@@ -73,7 +73,7 @@
 目的：发版与检查全自动；生产部署保留人工门。
 运行环境：容器 runner（act_runner 容器，`ubuntu-latest` 标签，job 容器 `node:22-bookworm` + 禁 IPv6 + pnpm store 卷 `~/.cache/ci-pnpm`）+ host runner（`dsh-host` 标签，systemd user 单元 `act-runner-host`，做部署类 job）。job 内 `.npmrc` 现场生成（只含 scope 路由 + token）——宿主 `~/.npmrc` 的 `proxy=http://localhost:7890/` 在容器内指向容器自身，绝不能整文件挂载；runner 配置的 `envs:` 会覆盖 workflow env，故代理类变量全部由 workflow 自管。
 提交：`a829ceacaf` 起的 `.gitea/workflows/` 系列（`a87175f078` 为 release 加入 native 镜像步骤）。
-同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。release 的 staging 部署会把本仓库检出到 tag 的 detached HEAD——后续开发先 `git checkout master`。workflow 内 git/npm 端点随 `11b77d8f8d` 迁到 `<gitea-host>`/`ChanceFlow`，且 job 内现场生成 `.npmrc` 的 scope 路由必须用规范大小写（见 D5）。发布脚本必须经 `pnpm run release:*` 调用（不能 `pnpm exec tsx scripts/release/*.ts`），否则 `npm_execpath` 缺失会让 `scripts/pnpm-invocation.ts` 直接报错；经 `pnpm run` 时选项直接跟脚本名，不要多余的 `--`。
+同步注意：upstream 无这些文件，永不冲突；流水线语义变更时更新本条。release 的 staging 部署会把本仓库检出到 tag 的 detached HEAD——后续开发先 `git checkout master`。workflow 内 git/npm 端点随 `11b77d8f8d` 迁到 `<gitea-host>`/`ChanceFlow`，且 job 内现场生成 `.npmrc` 的 scope 路由必须用规范大小写（见 D5）。发布脚本必须经 `pnpm run release:*` 调用（不能 `pnpm exec tsx scripts/release/*.ts`），否则 `npm_execpath` 缺失会让 `scripts/pnpm-invocation.ts` 直接报错；经 `pnpm run` 时选项直接跟脚本名，不要多余的 `--`。job 内 `.npmrc` 的 token 行是整份拷贝宿主 `~/.npmrc` 里的 `_authToken` 行，而 scope 路由指向 Gitea，因此宿主 `~/.npmrc` 必须带 `//<gitea-host>:3000/api/packages/ChanceFlow/npm/:_authToken=<token>`：只留别的 host 的 token 会让 publish 以 `ENEEDAUTH` 失败（0.1.5-rc.2-chance.3 与 0.1.7-rc.2-chance.0 第一次尝试都是这个原因）。deploy-staging 在宿主检出上只跑 `build:web`，依赖检出里已有上一次构建的 client 产物；检出被清过（或新克隆）时 `build:web` 会因缺 `@deepseek-ai/dsh-client-ui-theme/brand-font.css` 失败，因此该步骤先跑 `build:lib`（两个 face）再 `build:web`。
 
 ## D8: 别名 answer 按请求模型回放
 
