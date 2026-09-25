@@ -9,7 +9,7 @@
  */
 
 import { LlmError } from '@deepseek-ai/dsh-llm'
-import type { Message, ModelMessageSource, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
+import type { AssistantMessage as HarnessAssistantMessage, ModelMessageSource, ReplayEnvelope } from '@deepseek-ai/dsh-llm'
 import type { Api, AssistantMessage, Usage as PiUsage } from '@earendil-works/pi-ai'
 
 /** Per-block half of the pi-ai replay envelope, one entry per content block. */
@@ -150,8 +150,8 @@ function readReplayState(value: unknown): PiAiReplayState {
 }
 
 /** Convert provider-neutral blocks without trusting them as same-model replay. */
-function foreignAssistant(message: Message): AssistantMessage {
-  const source = message.source.kind === 'model' ? message.source : undefined
+function foreignAssistant(message: HarnessAssistantMessage): AssistantMessage {
+  const source = message.source
   const content: AssistantMessage['content'] = []
   for (const block of message.content) {
     switch (block.type) {
@@ -176,8 +176,8 @@ function foreignAssistant(message: Message): AssistantMessage {
     // Deliberately never equals a catalog API: absent replay state is foreign
     // even if source names the same provider/model as this request.
     api: 'dsh-foreign',
-    provider: source?.provider ?? 'dsh-foreign',
-    model: source?.model ?? 'dsh-foreign',
+    provider: source.provider,
+    model: source.model,
     usage: emptyPiUsage(),
     stopReason: content.some(piece => piece.type === 'toolCall') ? 'toolUse' : 'stop',
     timestamp: 0,
@@ -221,7 +221,7 @@ function holdThinkingOnToolCalls(content: AssistantMessage['content']): void {
 
 /** Recombine durable Harness content with validated pi-ai replay metadata. */
 function replayedAssistant(
-  message: Message,
+  message: HarnessAssistantMessage,
   source: ModelMessageSource,
   rawState: unknown,
   holdThinking: boolean,
@@ -285,7 +285,7 @@ function replayedAssistant(
  * another adapter's kind, another version, a malformed value, or metadata that
  * no longer matches the content — therefore degrades the one message to
  * provider-neutral history instead of failing the request.
- * @param message - assistant content with required source and optional adapter-owned replay metadata.
+ * @param message - model-produced assistant content with provider, model, and optional adapter-owned replay metadata.
  * @param onDegrade - called with the diagnostic reason when an unusable replay
  *   state falls back to provider-neutral conversion.
  * @param holdThinking - whether the target route requires every tool-call turn
@@ -295,12 +295,12 @@ function replayedAssistant(
  * @returns a native pi-ai assistant message reconstructed from durable content.
  */
 export function toPiAssistant(
-  message: Message,
+  message: HarnessAssistantMessage,
   onDegrade?: (reason: string) => void,
   holdThinking = false,
 ): AssistantMessage {
   const source = message.source
-  if (source.kind !== 'model' || source.replayState === undefined) return foreignAssistant(message)
+  if (source.replayState === undefined) return foreignAssistant(message)
   try {
     return replayedAssistant(message, source, source.replayState, holdThinking)
   } catch (error: unknown) {

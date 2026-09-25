@@ -16,7 +16,8 @@
 | [D5](#d5-fork-发版体系) | 全仓库 | `-chance.N` 版本号、Gitea 私服发布、lockfile 对齐策略 | `108dec0913` `45ba30bf52` `74009195aa` `ef6daef5b8` |
 | [D6](#d6-upstream-自动同步-workflow) | Gitea | 每 6 小时自动 merge upstream，冲突即显式失败 | `496c1d4bfc` |
 | [D7](#d7-本地-cicd-流水线) | Gitea Actions | check/release/生产部署/host 冒烟四条流水线 | `a829ceacaf` 起 |
-| [D8](#d8-别名-answer-按请求模型回放) | llm-pi-ai | 别名作答的 Anthropic 轮次按请求模型身份回放，保住 thinking 回传 | 待填（chance.2） |
+| [D8](#d8-别名-answer-按请求模型回放) | llm-pi-ai | 别名作答的 Anthropic 轮次按请求模型身份回放，保住 thinking 回传 | `4676c011bc` |
+| [D9](#d9-缺失-thinking-的工具调用轮次补空块) | llm-pi-ai | 含工具调用的重放轮次补占位签名 thinking 块，满足端点回传不变量 | `afb410c1c9` |
 
 ## D1: LAN 非安全上下文兼容
 
@@ -24,7 +25,7 @@
 目的：本部署就是 LAN IP + http，不引入 TLS。
 提交：`7e2a93c9c5`（browserUuid 回退）、`1d03929344` + `6c7840ab13`（UUID：randomUUID 优先，getRandomValues 兜底——后者修复了绕开 schedule 测试 mock 的回归）、`54b4d5fbf5`（AbortError→cancelled）。
 文件：`packages/client/ui-conversation/src/client/service.ts`、`packages/host/apiproxy/src/fetch/client.ts`、`packages/llm/llm/src/message.ts`、`packages/client/runtime/src/client/sessions/session.ts`、`packages/host/apiproxy/src/api/rpc.ts`。
-同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。rc.2（540c0cf5bb）upstream 改动了 `service.ts`/`rpc.ts`，合入后 browserUuid 回退与 cancelled 语义已核对仍成立。0.1.2-rc.1 合入：upstream 官方引入 `@deepseek-ai/dsh-util-crypto` 并落地全仓 lint 规则，统一解决非安全上下文 UUID 问题；`apiproxy` 与 `client-runtime` 已被 upstream 重构解耦，browserUuid 与旧 rpc.ts 子项并入 upstream。0.1.5-rc.2 合入：upstream 重构 `ClientTransportHooks`（新增 `rpc?`、`fetch` 变为可选），与本条 `isLanHostname` 落在同一文件的不同 hunk，git 自动合并无冲突；合入后已复核 LAN 主机名仍计入 `isLoopback`。
+同步注意：`rpc.ts` 是与 upstream 双高热文件（upstream 演进 settings 错误面），合并时逐 hunk 核对；upstream 若自行修复同一问题，删除对应子项。rc.2（540c0cf5bb）upstream 改动了 `service.ts`/`rpc.ts`，合入后 browserUuid 回退与 cancelled 语义已核对仍成立。0.1.2-rc.1 合入：upstream 官方引入 `@deepseek-ai/dsh-util-crypto` 并落地全仓 lint 规则，统一解决非安全上下文 UUID 问题；`apiproxy` 与 `client-runtime` 已被 upstream 重构解耦，browserUuid 与旧 rpc.ts 子项并入 upstream。0.1.5-rc.2 合入：upstream 重构 `ClientTransportHooks`（新增 `rpc?`、`fetch` 变为可选），与本条 `isLanHostname` 落在同一文件的不同 hunk，git 自动合并无冲突；合入后已复核 LAN 主机名仍计入 `isLoopback`。0.1.7-rc.2 合入：`packages/client/connection/src/client/index.ts` 的 `isLoopback` 判定被 upstream 改写（多行 `||` 排版），git 自动合并无冲突；合入后已复核该判定仍含 `isLanHostname(pageLocation.hostname)` 一项。
 
 ## D2: 特权方法不再限定 loopback
 
@@ -40,7 +41,7 @@
 目的：服务需要绑定 LAN 供局域网设备直接访问。
 提交：`6eafb8e59a`（host 实现）、`1f638eaa0c`（测试）。
 文件：`packages/bundle/web-app/src/startup.ts`、`packages/client/connection/src/loopback-hostname.ts`、`apps/cli`。
-同步注意：合并时核对 `--host 0.0.0.0` 拦截移除与 `isLanHostname` 仍成立。
+同步注意：合并时核对 `--host 0.0.0.0` 拦截移除与 `isLanHostname` 仍成立。0.1.7-rc.2 合入：upstream 未改这条分支，`startup.ts` 的拦截移除与 `isLanHostname` 均自动保留；`apps/cli/tests/built-bin.e2e.ts` 里 upstream 新增的 `--host 0.0.0.0` 拒绝断言已按本条删除，同时保留 upstream 新的 `dsh headless --help` 调用形式（upstream 起首位置参数即 profile 名，`--profile headless --help` 已废弃）。
 
 ## D4: (已退役) pi-ai chance 私服构建
 
@@ -56,7 +57,7 @@
 提交：`108dec0913`（rc.6-chance.1）、`74009195aa`/`ef6daef5b8`（热修产物 bump）、`45ba30bf52`（lockfile 对齐 + Agent Note）、`11b77d8f8d`（内网与组织名迁移，含 registry 端点）、`a87175f078`（native 镜像步骤）。
 文件：`scripts/release/{registry,mirror-native}.ts`、`scripts/release/mirror-native.spec.ts`、`.gitea/workflows/release.yml`。
 细节：[fork registry 与 pi-ai chance 构建](.agents/notes/implemented/process/2026-08-17-fork-registry-and-pi-ai-chance-builds.md)；用户接入与版本鉴别见 [REGISTRY.md](REGISTRY.md)。
-同步注意：版本号冲突（rc.2 实测 230 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；registry 组织名必须以注册表规范大小写 `ChanceFlow` 书写（Gitea 路由不分大小写，但 pnpm 的 tarball 供应链校验区分大小写，lockfile/workflow 里的小写 `chanceflow` 会被 `[ERR_PNPM_TARBALL_URL_MISMATCH]` 拒绝）；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）；镜像脚本按 `native/system/packages/*`（`prebuilds.json` 标记平台包）自动跟随 upstream 的改名与新增，但 checkout 钉住的 native 版本若 upstream 尚未发布，release 会在镜像步骤失败并报出版本号，此时应等 upstream 发布或用 `--source` 指定实际承载该版本的 registry。0.1.5-rc.2 合入：272 个 `package.json` 的版本冲突统一取 upstream `0.1.5-rc.2`，无源码冲突；自动合并的 `pnpm-lock.yaml` 经 `pnpm install` 校验无需再对齐。
+同步注意：版本号冲突（rc.2 实测 230 个 package.json）统一取 upstream，下一次 fork 发版再 `-chance` 化；registry 组织名必须以注册表规范大小写 `ChanceFlow` 书写（Gitea 路由不分大小写，但 pnpm 的 tarball 供应链校验区分大小写，lockfile/workflow 里的小写 `chanceflow` 会被 `[ERR_PNPM_TARBALL_URL_MISMATCH]` 拒绝）；升级生产 = `npm install -g @deepseek-ai/dsh && systemctl --user restart dsh`（见 `~/services/dsh/start.sh`）；镜像脚本按 `native/system/packages/*`（`prebuilds.json` 标记平台包）自动跟随 upstream 的改名与新增，但 checkout 钉住的 native 版本若 upstream 尚未发布，release 会在镜像步骤失败并报出版本号，此时应等 upstream 发布或用 `--source` 指定实际承载该版本的 registry。0.1.5-rc.2 合入：272 个 `package.json` 的版本冲突统一取 upstream `0.1.5-rc.2`，无源码冲突；自动合并的 `pnpm-lock.yaml` 经 `pnpm install` 校验无需再对齐。0.1.7-rc.2 合入：273 个 `package.json` 的版本冲突统一取 upstream `0.1.7-rc.2`，另有 9 个包被 upstream 删除（`code-runtime-worker-thread`、`e2b`、`subprocess-e2b`、`experimental/agent-team-web-profile`、`experimental/code-runtime-python`、`fs/tool-present`、`preset/agent-presets`、`settings/settings-file`、`workflow/workflow-worker-thread`），fork 侧仅改过版本号，因此接受删除；`pnpm-lock.yaml` 取 upstream 解析后 `pnpm install` 无差异；根 `package.json` 的 `release:mirror-native` 脚本行在取 upstream 后需重新加回。同一窗口 upstream 新引入公共依赖 `@deepseek-ai/libreoffice-kit@0.1.1`（`packages/document/office-to-pdf`、`packages/skill/skill-office`、`packages/bundle/web-app`、`apps/desktop-host` 依赖它），私服原本没有该包，`pnpm install` 会以 404 失败；2026-09-25 已按 `release:mirror-native` 的同一原则手工镜像入口包与 5 个平台包（`-darwin-arm64`、`-darwin-x64`、`-wasm`、`-win32-arm64`、`-win32-x64`），字节与公共 registry 记录的 integrity 一致。此类"upstream 新钉一个公共 `@deepseek-ai` 包"的情形与 native 序列同构：先手工镜像，否则 CI 的 `pnpm install --frozen-lockfile` 会先于镜像步骤失败。
 
 ## D6: upstream 自动同步 workflow
 
@@ -78,14 +79,14 @@
 
 行为：`packages/llm/llm-pi-ai/src/replay.ts` 的 `replayedAssistant` 用请求模型 id（`response.model`）设置回放 assistant 消息的 `model`，把端点上报的别名留在 `responseModel`（仅信息用途）。pi-ai 的 `transformMessages` 以 `assistantMsg.model === model.id` 判定同模型续写；此前 fork 与 upstream 都把别名恢复成 `model`，导致别名作答（p1 网关的 `deepseek-v4-1-flash-260910`、Anthropic 日期别名/fallback）被读成外来历史，thinking 块被降级为 text，网关随即报 `The content[].thinking in the thinking mode must be passed back to the API.`。
 目的：p1 网关的 thinking 必须原样回传；该故障间歇出现（报告别名的那条后端路径必失败，报告请求 id 的路径正常），且 `compat.allowEmptySignature` 无法覆盖（该开关在同模型分支之后才生效）。
-提交：本次 chance.2 提交。
+提交：`4676c011bc`（实现与断言）。
 文件：`packages/llm/llm-pi-ai/src/replay.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`、`.agents/notes/implemented/bug-fix/2026-09-20-pi-ai-alias-thinking-replay.md`。
-同步注意：这是 upstream 尚未修复的缺陷，合并 upstream 时若其 `replay.ts` 仍把 `responseModel` 当身份恢复，需重放本差异；若 upstream 自行修复，删除本条并核对 `convert.spec.ts` 断言方向。该注部分取代 [pi-ai 升级兼容性](.agents/notes/implemented/bug-fix/2026-09-05-pi-ai-upgrade-compatibility.md) 的回放来源段落，两处已互相链接。
+同步注意：这是 upstream 尚未修复的缺陷，合并 upstream 时若其 `replay.ts` 仍把 `responseModel` 当身份恢复，需重放本差异；若 upstream 自行修复，删除本条并核对 `convert.spec.ts` 断言方向。该注部分取代 [pi-ai 升级兼容性](.agents/notes/implemented/bug-fix/2026-09-05-pi-ai-upgrade-compatibility.md) 的回放来源段落，两处已互相链接。0.1.7-rc.2 合入：upstream 把 `replay.ts` 的消息类型从 `Message` 改名为 `HarnessAssistantMessage`、`toPiAssistant` 改为不再要求 `source.kind === 'model'`，但 `model:` 仍取别名，本条差异按新签名重放（`state.response.model` 为身份、`responseModel` 仅信息）；README 与升级兼容性注的回放段落同步改为"重建以请求模型为消息身份"。
 
 ## D9: 缺失 thinking 的工具调用轮次补空块
 
 行为：`packages/llm/llm-pi-ai/src/replay.ts` 的 `toPiAssistant` 在路由声明 `compat.allowEmptySignature` 时维持回传不变量——被重放且含工具调用的 assistant 轮次必须携带 thinking 块。持久轮次没有记录 reasoning 时前置 `{type:'thinking', thinking:'', thinkingSignature:'dsh-synthetic-thinking'}`；只记录了一个文本为空且无签名的 thinking 块时补上同一占位签名。块文本始终为空，模型可见内容没有增加。
 目的：p1 网关在 thinking 模式下要求每条含 `tool_use` 的 assistant 消息回传 thinking（实测：缺块 400；空文本或缺签名的块 200；纯文本轮次不需要）。provider 有时根本不返回 reasoning（重放已部署子 agent 的请求形态，10/10 没有 thinking 内容块），跨 provider 会话里的 Gemini 轮次又把 thinking 放在 `thoughtSignature` 而 pi-ai 转换时会丢弃；这两种形态都无法用 pi-ai 自身开关修好。删除 `thinking` 请求字段同样无效——端点默认 thinking 开启，只有显式 `{"type":"disabled"}` 才关闭该模式。
-提交：本次提交。
+提交：`afb410c1c9`（实现与断言）。
 文件：`packages/llm/llm-pi-ai/src/replay.ts`、`packages/llm/llm-pi-ai/src/context.ts`、`packages/llm/llm-pi-ai/src/adapter.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`、`.agents/notes/implemented/bug-fix/2026-09-21-pi-ai-held-thinking-on-tool-calls.md`。
-同步注意：upstream 未修（0.86.1 的两处守卫未变）。合并时若 upstream 的 `transform-messages`/`anthropic-messages` 已能保留空 thinking 块，可删除本条并让 `holdThinkingOnToolCalls` 只保留 pi-ai 仍未覆盖的部分。`allowEmptySignature` 既是 pi-ai 的保留开关，也是本行为的触发条件，改其语义需同时核对两处。跨 provider 轮次仍不在覆盖内：pi-ai 会拍平外来消息上的空 thinking 块，因此混 provider 历史的请求仍可能被拒。
+同步注意：upstream 未修（0.86.1 的两处守卫未变）。合并时若 upstream 的 `transform-messages`/`anthropic-messages` 已能保留空 thinking 块，可删除本条并让 `holdThinkingOnToolCalls` 只保留 pi-ai 仍未覆盖的部分。`allowEmptySignature` 既是 pi-ai 的保留开关，也是本行为的触发条件，改其语义需同时核对两处。跨 provider 轮次仍不在覆盖内：pi-ai 会拍平外来消息上的空 thinking 块，因此混 provider 历史的请求仍可能被拒。0.1.7-rc.2 合入：upstream 重构 `context.ts`，抽出 `appendSystemOrAssistant` 统一 system/assistant 两个分支并把同步路径的用户轮次收敛为 `flattenText`，本条的 `holdThinking` 参数改由该函数透传（`toPiContext` → `textOnlyContext`/`toPiContextWithImages` → `appendSystemOrAssistant` → `appendAssistant` → `toPiAssistant`），`replay.ts` 的 `replayedAssistant`/`toPiAssistant` 同样按 upstream 新签名重放。
