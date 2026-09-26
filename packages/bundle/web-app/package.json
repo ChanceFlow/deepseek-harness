@@ -25,7 +25,8 @@
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./presets/*.patch.yml": "./presets/*.patch.yml",
     "./src/*": "./src/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./presets/plugins/*": "./presets/plugins/*"
   },
   "files": [
     "lib/index.js",

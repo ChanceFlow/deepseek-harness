@@ -147,7 +147,7 @@
             name: '@deepseek-ai/dsh-plugin-manager/tools'
             disabled: true
           - id: multi-toolcall
-            name: './plugins/multi-toolcall.js'
+            name: '@deepseek-ai/dsh-web-app/presets/plugins/multi-toolcall.js'
 
 # The fork's default preset is the advanced one, matching the deployments that
 # carried it as a directory preset before 0.1.7.

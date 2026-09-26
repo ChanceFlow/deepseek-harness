@@ -147,4 +147,4 @@
             name: '@deepseek-ai/dsh-plugin-manager/tools'
             disabled: true
           - id: godot-backends
-            name: './plugins/godot-backends.js'
+            name: '@deepseek-ai/dsh-web-app/presets/plugins/godot-backends.js'

@@ -147,4 +147,4 @@
             name: '@deepseek-ai/dsh-plugin-manager/tools'
             disabled: true
           - id: jailbreak-prompt
-            name: './plugins/jailbreak-prompt.js'
+            name: '@deepseek-ai/dsh-web-app/presets/plugins/jailbreak-prompt.js'
