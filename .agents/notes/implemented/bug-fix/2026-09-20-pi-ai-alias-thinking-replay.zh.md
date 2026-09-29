@@ -32,4 +32,4 @@ Anthropic Messages 端点可能用请求之外的名字作答：Anthropic 的日
 
 覆盖位于 `packages/llm/llm-pi-ai/tests/convert.spec.ts` 的 Anthropic 回放用例，断言回放身份、保留的 `responseModel`、按请求模型转换时 thinking 的保留，以及本次改动必须保住的异模型降级。
 
-本注部分取代 [pi-ai 升级兼容性](2026-09-05-pi-ai-upgrade-compatibility.zh.md) 中关于回放来源的段落——该段在重建时恢复上报的原生模型；那条注保留其兼容字段决策，并就此一处链接到本注。
+本注部分取代 [pi-ai 升级兼容性](2026-09-05-pi-ai-upgrade-compatibility.zh.md) 中关于回放状态的段落——该段在重建时恢复上报的原生模型；那条注保留其兼容字段决策，并就此一处链接到本注。

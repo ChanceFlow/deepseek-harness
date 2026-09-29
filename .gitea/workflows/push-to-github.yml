@@ -9,9 +9,10 @@
 # addresses, host paths, and a personal author email; the GitHub copy must
 # not. Each run rewrites a throwaway mirror clone with git-filter-repo
 # (literal text and message replacements + a mailmap) and force-pushes the
-# rewritten refs. Gitea history is never rewritten, so LAN installs and npm
-# gitHead provenance keep working; GitHub SHAs intentionally differ from
-# Gitea SHAs, which is why DIFF.md's commit references resolve on Gitea only.
+# rewritten refs. Gitea history is never rewritten, so LAN installs and the
+# gitHead values npm records on published versions keep working; GitHub SHAs
+# intentionally differ from Gitea SHAs, which is why DIFF.md's commit
+# references resolve on Gitea only.
 #
 # The push is forced: nothing but this workflow writes the fork's master.
 # The GitHub fork is read-only downstream; do not open PRs or branches

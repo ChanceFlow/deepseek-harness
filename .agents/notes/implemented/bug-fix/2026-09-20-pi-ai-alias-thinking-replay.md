@@ -32,4 +32,4 @@ A turn answered under another name replays as the requested model, so its thinki
 
 Coverage lives in the Anthropic replay cases of `packages/llm/llm-pi-ai/tests/convert.spec.ts`, which assert the replayed identity, the retained `responseModel`, thinking retention when transforming for the requested model, and the foreign-model downgrade that must survive this change.
 
-This partially supersedes the replay-provenance paragraph of [pi-ai upgrade compatibility](2026-09-05-pi-ai-upgrade-compatibility.md), which restored the reported native model on reconstruction; that note keeps its compatibility-field decisions and now links here for this one.
+This partially supersedes the replay-state paragraph of [pi-ai upgrade compatibility](2026-09-05-pi-ai-upgrade-compatibility.md), which restored the reported native model on reconstruction; that note keeps its compatibility-field decisions and now links here for this one.

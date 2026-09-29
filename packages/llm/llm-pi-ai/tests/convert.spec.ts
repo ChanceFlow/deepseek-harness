@@ -443,6 +443,33 @@ describe('toPiContext', () => {
     expect(onDegrade).not.toHaveBeenCalled()
   })
 
+  it('replays saved v2 Anthropic alias metadata with the requested model and signed thinking', () => {
+    const requestedModel = 'claude-haiku-4-5'
+    const responseModel = 'claude-haiku-4-5-20251001'
+    const replayState = {
+      response: {
+        kind: 'pi-ai', version: 2, api: 'anthropic-messages', provider: 'anthropic',
+        model: requestedModel, responseModel, stopReason: 'stop',
+      },
+      blocks: [{ type: 'reasoning', thinkingSignature: 'saved-signature' }],
+    }
+    const onDegrade = vi.fn()
+    const context = toPiContext({
+      provider: 'anthropic', model: requestedModel,
+      messages: [createMessage({
+        role: 'assistant', content: [{ type: 'reasoning', text: 'saved reasoning' }],
+        source: { kind: 'model', provider: 'anthropic', model: requestedModel, replayState },
+      })],
+    }, undefined, onDegrade)
+    const model = getBuiltinModels('anthropic').find(candidate => candidate.id === requestedModel)
+    if (model === undefined) throw new Error('missing Anthropic catalog model')
+    expect(onDegrade).not.toHaveBeenCalled()
+    expect(context.messages[0]).toMatchObject({ model: requestedModel, responseModel })
+    expect(transformMessages(context.messages, model)[0]).toMatchObject({
+      content: [{ type: 'thinking', thinking: 'saved reasoning', thinkingSignature: 'saved-signature' }],
+    })
+  })
+
   it('replays all native block kinds when optional metadata is absent', () => {
     const state = toPiReplayState(assistant({
       content: [
@@ -660,11 +687,12 @@ describe('toPiContext', () => {
 describe('toStreamChunks', () => {
   it.each([
     ['claude-haiku-4-5', 'claude-haiku-4-5-20251001'],
-    ['claude-fable-5', 'claude-opus-5'],
-    ['claude-opus-5', 'claude-opus-5'],
-  ])('replays Anthropic request %s answered as %s under the requested identity', async (requestedModel, returnedModel) => {
+    ['claude-opus-5', 'kimi-for-coding'],
+    ['claude-opus-5', undefined],
+  ])('retains signed thinking for Anthropic request %s reported as %s', async (requestedModel, reportedModel) => {
     const native = assistant({
-      api: 'anthropic-messages', provider: 'anthropic', model: returnedModel,
+      api: 'anthropic-messages', provider: 'anthropic', model: requestedModel,
+      ...reportedModel === undefined ? {} : { responseModel: reportedModel },
       providerThinkingLevel: 'high',
       content: [{ type: 'thinking', thinking: 'reason', thinkingSignature: 'signed' }],
     })
@@ -674,8 +702,10 @@ describe('toStreamChunks', () => {
     const finish = chunks.find(chunk => chunk.type === 'finish')
     const replayState: unknown = JSON.parse(JSON.stringify(finish?.replayState))
     expect(replayState).toMatchObject({ response: { model: requestedModel } })
-    if (requestedModel !== returnedModel) {
-      expect(replayState).toMatchObject({ response: { responseModel: returnedModel } })
+    if (reportedModel === undefined) {
+      expect(finish?.replayState?.response).not.toHaveProperty('responseModel')
+    } else {
+      expect(replayState).toMatchObject({ response: { responseModel: reportedModel } })
     }
     const onDegrade = vi.fn()
     const context = toPiContext({
@@ -686,28 +716,16 @@ describe('toStreamChunks', () => {
       })],
     }, undefined, onDegrade)
     expect(onDegrade).not.toHaveBeenCalled()
-    // The replayed identity is the requested model, never the reported alias:
-    // pi-ai decides same-model continuation by `message.model === model.id`, so
-    // an alias in this field reads the turn as foreign history and drops its
-    // thinking block. The reported name stays informational in `responseModel`.
     expect(context.messages[0]).toMatchObject({
       api: 'anthropic-messages', model: requestedModel, providerThinkingLevel: 'high',
-      ...requestedModel === returnedModel ? {} : { responseModel: returnedModel },
       content: native.content,
     })
-    const catalog = getBuiltinModels('anthropic')
-    const requested = catalog.find(model => model.id === requestedModel)
+    const requested = getBuiltinModels('anthropic').find(model => model.id === requestedModel)
     if (requested === undefined) throw new Error('missing Anthropic catalog model')
-    // Same-model continuation keeps the signed thinking block even when the
-    // endpoint answered under another name.
     expect(transformMessages(context.messages, requested)[0]).toMatchObject({ content: native.content })
-    const returned = catalog.find(model => model.id === returnedModel)
-    if (requestedModel !== returnedModel && returned !== undefined) {
-      // A genuinely different model is still foreign history.
-      expect(transformMessages(context.messages, returned)[0]).toMatchObject({
-        content: [{ type: 'text', text: 'reason' }],
-      })
-    }
+    expect(transformMessages(context.messages, { ...requested, id: 'other-model' })[0]).toMatchObject({
+      content: [{ type: 'text', text: 'reason' }],
+    })
   })
 
   const partialWithToolCall = assistant({

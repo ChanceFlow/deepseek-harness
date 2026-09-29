@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-21-pi-ai-held-thinking-on-tool-calls.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-21-pi-ai-held-thinking-on-tool-calls.md
-2026-09-21-pi-ai-held-thinking-on-tool-calls.md: 48faab5e5bda1902a83d144b9108cf840800ac73
-2026-09-21-pi-ai-held-thinking-on-tool-calls.zh.md: 7fc6b0a220ba5c52ed721587354848a1625717ca
+/agent-note-holding-a-thinking-block-on-the-tool-call-turns-a-provider-left-unsigned:
+  en: de24b43748ccd255
+  zh: 91e9526e4d7778f0
+/agent-note-holding-a-thinking-block-on-the-tool-call-turns-a-provider-left-unsigned/problem:
+  en: 16345d34d1b2e1e4
+  zh: 76720509db1a6b3f
+/agent-note-holding-a-thinking-block-on-the-tool-call-turns-a-provider-left-unsigned/decision:
+  en: b1181d76b6f54cc5
+  zh: 77faedb487fc4ac3
+/agent-note-holding-a-thinking-block-on-the-tool-call-turns-a-provider-left-unsigned/alternatives-considered:
+  en: 669f7eae11db1c8e
+  zh: 00b12d58bfb21ab9
+/agent-note-holding-a-thinking-block-on-the-tool-call-turns-a-provider-left-unsigned/consequences:
+  en: 799ff4ddba99457a
+  zh: 030214847cc4e595

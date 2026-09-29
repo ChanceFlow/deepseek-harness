@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-01-gitea-github-fork-mirror.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-01-gitea-github-fork-mirror.md
-2026-09-01-gitea-github-fork-mirror.md: 2839545eb6bfa8d818449f9e97fd2603ba20a7c6
-2026-09-01-gitea-github-fork-mirror.zh.md: 2164a7420fbab2814d079627b3aafa5a775835f2
+/agent-note-mirror-the-fork-s-master-to-a-github-fork-from-gitea-actions:
+  en: b60e3d4854bdb061
+  zh: 342440a1b542fdcd
+/agent-note-mirror-the-fork-s-master-to-a-github-fork-from-gitea-actions/problem:
+  en: 174a901770be0608
+  zh: 41b2691db6129e58
+/agent-note-mirror-the-fork-s-master-to-a-github-fork-from-gitea-actions/decision:
+  en: 5dfa5337583d211a
+  zh: 1febc4f6778092b2
+/agent-note-mirror-the-fork-s-master-to-a-github-fork-from-gitea-actions/alternatives-considered:
+  en: 4ceaa0a4cdbf681a
+  zh: 6f705bef8eabb3ea
+/agent-note-mirror-the-fork-s-master-to-a-github-fork-from-gitea-actions/consequences:
+  en: 1d3032f778616b59
+  zh: 79b1da4c6b9760fc

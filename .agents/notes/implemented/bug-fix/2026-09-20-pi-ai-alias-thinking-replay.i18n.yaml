@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-20-pi-ai-alias-thinking-replay.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-20-pi-ai-alias-thinking-replay.md
-2026-09-20-pi-ai-alias-thinking-replay.md: 1c04543d72b9b83a5a85f75cee6c83a64f94c3b1
-2026-09-20-pi-ai-alias-thinking-replay.zh.md: 663102223482f35394307114aad11c560446c385
+/agent-note-replaying-an-aliased-anthropic-answer-as-the-requested-model:
+  en: daf47637215d5ce0
+  zh: 548253ac5f99e7b8
+/agent-note-replaying-an-aliased-anthropic-answer-as-the-requested-model/problem:
+  en: 5a4f4a98e9d3a8a0
+  zh: e24f71d8f0e22395
+/agent-note-replaying-an-aliased-anthropic-answer-as-the-requested-model/decision:
+  en: fe4af001abefd05e
+  zh: 15709533eccc7371
+/agent-note-replaying-an-aliased-anthropic-answer-as-the-requested-model/alternatives-considered:
+  en: b95d7fa48743e1d9
+  zh: 1f5322939a49367d
+/agent-note-replaying-an-aliased-anthropic-answer-as-the-requested-model/consequences:
+  en: a26ce5708069bc7a
+  zh: 47a7db3feb679b36
