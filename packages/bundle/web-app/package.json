@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-web-app",
   "description": "The dsh browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin (frontend dist serving, bash runtime variables, URL line)",
-  "version": "0.2.1-rc.1-chance.0",
+  "version": "0.2.1-rc.2",
   "publishConfig": {
     "access": "public"
   },
@@ -40,16 +40,16 @@
     "presets/ptc.patch.yml",
     "presets/minimal.patch.yml",
     "presets/cordis.patch.yml",
+    "lib/public-url-*.js",
+    "lib/types/**/*.d.ts",
     "presets/advanced.patch.yml",
     "presets/godot.patch.yml",
     "presets/jailbreak.patch.yml",
-    "lib/public-url-*.js",
     "presets/plugins/godot-backends.js",
     "presets/plugins/jailbreak-prompt.js",
     "presets/plugins/jailbreak-prompt.md",
     "presets/plugins/multi-toolcall.js",
-    "presets/plugins/multi-toolcall.md",
-    "lib/types/**/*.d.ts"
+    "presets/plugins/multi-toolcall.md"
   ],
   "license": "MIT",
   "dsh": {
@@ -102,6 +102,7 @@
     "@deepseek-ai/dsh-client-ui-layout": "workspace:*",
     "@deepseek-ai/dsh-client-ui-message-feedback": "workspace:*",
     "@deepseek-ai/dsh-client-ui-model-selection": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-deepseek-model-label-1017": "workspace:*",
     "@deepseek-ai/dsh-client-ui-open-in-app": "workspace:*",
     "@deepseek-ai/dsh-client-ui-permission-presets": "workspace:*",
     "@deepseek-ai/dsh-client-ui-plan": "workspace:*",
