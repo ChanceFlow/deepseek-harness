@@ -18,7 +18,7 @@
  *   guidance block that starts at `TOOL_BASH` (1000), so the rule is read just
  *   before the guidance of the tools it applies to. The text names no
  *   `{{variable}}`, which keeps it independent of the prompt interpolator's
- *   registered-variable set (only `provider`, `model`, and `cwd` exist).
+ *   registered-variable set.
  *
  * - This row publishes no service. It only consumes the host-plane
  *   `systemPrompt` registry — the same shape as `tool-fs` consuming `tools` —
