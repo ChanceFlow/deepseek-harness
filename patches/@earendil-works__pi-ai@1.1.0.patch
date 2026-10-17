@@ -71,3 +71,15 @@ index 7da1c45de8a106a68411cf79bec75f553534a1c7..296d131b59b1cf75f2516c39e85bba72
                  break;
              }
              case "toolcall_end":
+diff --git a/dist/api/google-shared.js b/dist/api/google-shared.js
+--- a/dist/api/google-shared.js
++++ b/dist/api/google-shared.js
+@@ -40,6 +40,8 @@
+     // Match Gemini 3 Pro/Flash IDs with or without a minor version, such as
+     // gemini-3-flash-preview, gemini-3.1-pro-preview, and gemini-3.8-flash.
+     /gemini-3(?:\.\d+)?-(?:pro|flash)/.test(id) ||
++        // Gemini 4 models reject the token budget and require the discrete level.
++        /gemini-4(?:\.\d+)?-/.test(id) ||
+         id === "gemini-flash-latest" ||
+         id === "gemini-flash-lite-latest" ||
+         // Match both hosted Gemma 4 naming forms: gemma-4-* and gemma4-*.
