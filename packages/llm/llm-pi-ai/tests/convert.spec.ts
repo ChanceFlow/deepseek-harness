@@ -951,6 +951,11 @@ describe('mapStopReason / mapUsage', () => {
     'OpenAI Responses stream ended before a terminal response event',
     'openrouter stream ended without a terminal event',
     'Stream ended without finish_reason',
+    // A gateway's in-band `error` SSE frame reporting its own upstream drop;
+    // pi-ai rethrows the frame's data verbatim, so the message is that JSON.
+    'upstream stream disconnected: unexpected EOF',
+    '{"error":{"message":"upstream stream disconnected: unexpected EOF","type":"stream_read_error"},"type":"error"}',
+    '{"type":"error","error":{"type":"stream_read_error"}}',
   ])('maps pi-ai transport wording %j', (errorMessage) => {
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage })))
       .toMatchObject({ kind: 'error', failure: { code: 'TRANSPORT' } })

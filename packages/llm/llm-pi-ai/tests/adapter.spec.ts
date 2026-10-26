@@ -17,7 +17,7 @@ import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
 import { DEFAULT_MAX_REQUEST_IMAGE_BYTES, resolveProfiles } from '../src/config.ts'
 import { memoryAuth } from './auth-double.ts'
 import { assemble } from './assemble.ts'
-import { anthropicTextEvents, closeMockServers, mockServer, textEvents } from './mock-server.ts'
+import { anthropicFrame, anthropicMessageStart, anthropicTextEvents, closeMockServers, mockServer, textEvents } from './mock-server.ts'
 
 afterEach(async () => {
   vi.useRealTimers()
@@ -387,6 +387,45 @@ describe('PiAiAdapter provider routing', () => {
     const result = await assemble(ctx, { model: 'deepseek-flash', messages: [] })
     expect(result.finish).toMatchObject({ kind: 'error', failure: { code } })
     expect(server.paths).toEqual(['/chat/completions'])
+  })
+
+  it('classifies a gateway error frame reporting an upstream stream drop as TRANSPORT', async () => {
+    const gatewayError = {
+      error: { message: 'upstream stream disconnected: unexpected EOF', type: 'stream_read_error' },
+      type: 'error',
+    }
+    const server = await mockServer([{
+      events: [
+        anthropicMessageStart,
+        anthropicFrame({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+        anthropicFrame({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'partial' } }),
+        { event: 'error', data: JSON.stringify(gatewayError) },
+      ],
+    }])
+    vi.stubEnv('PI_TEST_KEY', 'test-key')
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        'claude-gateway': {
+          apiKeyEnv: 'PI_TEST_KEY',
+          api: 'anthropic-messages',
+          baseURL: server.url,
+          models: [{ id: 'gateway-model' }],
+        },
+      },
+    })
+
+    const result = await assemble(ctx, { provider: 'claude-gateway', model: 'gateway-model', messages: [] })
+
+    // pi-ai rethrows the error frame's data verbatim; the failure keeps that
+    // text while the code becomes retryable TRANSPORT for llm-retry.
+    expect(result.finish).toEqual({
+      kind: 'error',
+      failure: { message: JSON.stringify(gatewayError), code: 'TRANSPORT' },
+    })
+    expect(server.paths).toHaveLength(1)
+    expect(server.paths[0]).toMatch(/^\/v1\/messages/)
   })
 
   it('uses the resolved catalog context window for usage-based overflow detection', async () => {

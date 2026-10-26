@@ -56,6 +56,15 @@ function classifyPiAiError(message: string): string {
   // finish_reason`). The connection dropped mid-response, so this is a transport
   // truncation, not a model-level error.
   if (/stream ended (?:before|without)\b/i.test(message)) return 'TRANSPORT'
+  // A gateway can report its own upstream drop instead of a truncated provider
+  // stream: an Anthropic-compatible route ends the response with an `error` SSE
+  // frame whose data is `{"error":{"type":"stream_read_error","message":
+  // "upstream stream disconnected: unexpected EOF"}}` (pi-ai rethrows that data
+  // verbatim as the error message). The wire closed mid-response, so this is
+  // transport truncation too.
+  if (/\bunexpected\s+EOF\b|\bstream[_\s]+(?:read[_\s]+error|(?:was[_\s]+)?disconnected)\b/i.test(message)) {
+    return 'TRANSPORT'
+  }
   if (/\b(?:network|connection|socket|fetch)\b|\bECONN[A-Z]+\b/i.test(message)
     || /\b(?:other side closed|HTTP2 request did not get a response|WebSocket closed unexpectedly)\b/i.test(message)
     // undici renders a mid-stream socket drop as a bare `terminated` (its

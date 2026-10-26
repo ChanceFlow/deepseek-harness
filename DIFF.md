@@ -20,6 +20,7 @@
 | [D9](#d9-缺失-thinking-的工具调用轮次补空块) | llm-pi-ai | 含工具调用的重放轮次补占位签名 thinking 块，满足端点回传不变量 | `afb410c1c9` |
 | [D10](#d10-fork-自带的-agent-presets) | web bundle | 五个本地 agent preset 随 fork 发版内置，默认 advanced | `af005d3779` `215a41ce63` |
 | [D11](#d11-登记簿不在-commit-引用门禁范围) | 脚本门禁 | repository-references 门禁放行本登记簿，其余文件仍按提交号引用规则检查 | `0.2.0-rc.2-chance.0` |
+| [D12](#d12-网关上游断流归类为-transport) | llm-pi-ai | 网关 `error` 帧自报的上游断流归为可重试的 TRANSPORT | 本次提交 |
 
 ## D1: LAN 非安全上下文兼容
 
@@ -108,3 +109,11 @@
 目的：本登记簿每条差异以"实现它的提交"为索引，这些提交只在本仓库（Gitea 侧）可解析；0.2.0 窗口 upstream 新引入的门禁按"维护中的文档不得引用提交号"把整份登记簿判为违规，而抹掉提交号会失去每条差异的可追溯性。
 文件：`scripts/verify-repository-references.ts`、`scripts/verify-repository-references.spec.ts`。
 同步注意：upstream 改动该门禁（`excludedPrefixes`、语料发现或 spec 用例）时按"登记簿排除项仍在"重放；`pnpm run verify-repository-references` 与脚本 spec 可验证本条仍生效。同一窗口还有两条 upstream 新门禁与 fork 文件冲突，已按门禁要求改写而非放行：`verify-concrete-terms`（禁用词）整改了 `2026-09-05-pi-ai-upgrade-compatibility`、`2026-09-20-pi-ai-alias-thinking-replay`、`2026-09-01-gitea-github-fork-mirror` 三份注与 `push-to-github.yml` 注释；`verify-translation-pairing` 的新格式要求这三份注的 `.i18n.yaml` 重新记录（`--write`）。
+
+## D12: 网关上游断流归类为 TRANSPORT
+
+行为：`packages/llm/llm-pi-ai/src/stream.ts` 的 `classifyPiAiError` 把网关自报的上游断流归为 `TRANSPORT`（可重试的传输截断）而不是模型级错误——Anthropic 兼容路由以一条 `error` SSE 帧结束响应，其 data 是 `{"error":{"type":"stream_read_error","message":"upstream stream disconnected: unexpected EOF"}}`，pi-ai 把该帧的 data 逐字重抛为错误消息，因此按消息文本里的 `unexpected EOF` / `stream_read_error` / `stream disconnected` 识别。
+目的：端点没有给出模型级终止原因，连接在响应中途被网关关闭，这与 pi-ai 自己判定的 `stream ended before/without ...` 是同一类失败；归为 `TRANSPORT` 后交由 `llm-retry` 重试，避免一次网关抖动就终止整轮对话。
+提交：本次提交。
+文件：`packages/llm/llm-pi-ai/src/stream.ts`、`packages/llm/llm-pi-ai/tests/adapter.spec.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`。
+同步注意：upstream 重写 `classifyPiAiError` 时按本条重放这两个正则分支；若 pi-ai 升级后把该帧包装成别的消息文本，正则要跟着改。判定只看消息文本，不区分 provider——任何路由把 `stream read error` / `unexpected EOF` 报上来都会被重试，这与 `TRANSPORT` 的既有语义一致。
