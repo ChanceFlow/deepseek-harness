@@ -49,7 +49,15 @@
     "presets/plugins/jailbreak-prompt.js",
     "presets/plugins/jailbreak-prompt.md",
     "presets/plugins/multi-toolcall.js",
-    "presets/plugins/multi-toolcall.md"
+    "presets/plugins/multi-toolcall.md",
+    "presets/isc-audit.patch.yml",
+    "presets/plugins/isc-audit.js",
+    "presets/plugins/isc-audit.md",
+    "presets/plugins/isc-audit/**",
+    "presets/isc-jailbreak.patch.yml",
+    "presets/plugins/isc-jailbreak.js",
+    "presets/plugins/isc-jailbreak.md",
+    "presets/plugins/isc-jailbreak/**"
   ],
   "license": "MIT",
   "dsh": {
@@ -62,7 +70,8 @@
         "./presets/cordis.patch.yml",
         "./presets/advanced.patch.yml",
         "./presets/godot.patch.yml",
-        "./presets/jailbreak.patch.yml"
+        "./presets/jailbreak.patch.yml",
+        "./presets/isc-jailbreak.patch.yml"
       ]
     }
   },
