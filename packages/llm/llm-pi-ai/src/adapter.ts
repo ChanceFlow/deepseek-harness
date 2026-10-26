@@ -408,7 +408,7 @@ export class PiAiAdapter extends LlmAdapter {
       // hold that block even when the provider recorded no reasoning.
       const holdThinking = profile.compat?.allowEmptySignature === true
       const context = attachments === undefined
-        ? toPiContext(request, undefined, onReplayDegrade, holdThinking)
+        ? toPiContext(request, undefined, onReplayDegrade, updates.systemPromptUpdate === 'in-history', holdThinking)
         : await toPiContext({ ...request, signal: watchdog.signal }, {
           attachments,
           resolveImageAccess: ref => this.config.resolveImageAccess?.(attachments, ref),
@@ -417,7 +417,7 @@ export class PiAiAdapter extends LlmAdapter {
             maxPixels: profile.requestImagePixelBudget,
             maxBytes: profile.requestImageMaxBytes,
           },
-        }, onReplayDegrade, holdThinking)
+        }, onReplayDegrade, updates.systemPromptUpdate === 'in-history', holdThinking)
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
