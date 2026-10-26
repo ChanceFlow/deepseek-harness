@@ -1,7 +1,0 @@
-# Runtime artifacts of an instance. The shipped copy is install material: copy the
-# directory somewhere writable before resolving it. If you do run it in place,
-# these are the files it writes.
-trigger.log
-tvd-report.json
-tvd-report.md
-__pycache__/
