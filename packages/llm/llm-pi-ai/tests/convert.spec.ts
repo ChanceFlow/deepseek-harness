@@ -1051,7 +1051,7 @@ describe('toPiContext held thinking on tool-call turns', () => {
         content,
         source: { kind: 'model', provider: 'p1', model: 'deepseek-flash', replayState },
       })],
-    }, undefined, undefined, holdThinking)
+    }, undefined, undefined, false, holdThinking)
   }
 
   // The endpoint rejects a request whose assistant tool-call turn omits the
