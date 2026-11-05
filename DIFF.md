@@ -18,9 +18,10 @@
 | [D7](#d7-本地-cicd-流水线) | Gitea Actions | check/release/生产部署/host 冒烟四条流水线 | `a829ceacaf` 起 |
 | [D8](#d8-别名-answer-按请求模型回放) | llm-pi-ai | 别名作答的 Anthropic 轮次按请求模型身份回放，保住 thinking 回传 | `4676c011bc` |
 | [D9](#d9-缺失-thinking-的工具调用轮次补空块) | llm-pi-ai | 含工具调用的重放轮次补占位签名 thinking 块，满足端点回传不变量 | `afb410c1c9` |
-| [D10](#d10-fork-自带的-agent-presets) | web bundle | 五个本地 agent preset 随 fork 发版内置，默认 advanced | `af005d3779` `215a41ce63` |
+| [D10](#d10-fork-自带的-agent-presets) | web bundle | 三个本地 agent preset 随 fork 发版内置，默认 advanced | `af005d3779` `215a41ce63` |
 | [D11](#d11-登记簿不在-commit-引用门禁范围) | 脚本门禁 | repository-references 门禁放行本登记簿，其余文件仍按提交号引用规则检查 | `0.2.0-rc.2-chance.0` |
 | [D12](#d12-网关上游断流归类为-transport) | llm-pi-ai | 网关 `error` 帧自报的上游断流归为可重试的 TRANSPORT | 本次提交 |
+| [D13](#d13-provider-报出的畸形生成按可重试失败处理) | llm-pi-ai | provider 自报的畸形生成归为可重试的 SERVER，保留已收到的流事件 | 本次提交 |
 
 ## D1: LAN 非安全上下文兼容
 
@@ -117,3 +118,11 @@
 提交：本次提交。
 文件：`packages/llm/llm-pi-ai/src/stream.ts`、`packages/llm/llm-pi-ai/tests/adapter.spec.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`。
 同步注意：upstream 重写 `classifyPiAiError` 时按本条重放这两个正则分支；若 pi-ai 升级后把该帧包装成别的消息文本，正则要跟着改。判定只看消息文本，不区分 provider——任何路由把 `stream read error` / `unexpected EOF` 报上来都会被重试，这与 `TRANSPORT` 的既有语义一致。
+
+## D13: provider 报出的畸形生成按可重试失败处理
+
+行为：`packages/llm/llm-pi-ai/src/stream.ts` 的 `classifyPiAiError` 把 provider 自己报告的畸形生成归为可重试的 `SERVER`——Gemini 以 `MALFORMED_RESPONSE` finish reason 上报，pi-ai 把它包装成 `Provider stopped with: MALFORMED_RESPONSE` 或 `Unhandled stop reason: MALFORMED_RESPONSE` 消息；同时 `patches/@earendil-works__pi-ai@1.3.0.patch` 让 google-shared 的 `mapStopReason` 遇到未归类 reason 时返回 `error` 而不是抛异常，已收到的流事件不再丢失。安全与内容过滤终止（如 `SAFETY`）仍是 `PI_AI_ERROR`，不重试。
+目的：Gemini 后端会偶发返回畸形生成；请求已被 provider 接受，失败发生在 provider 侧，重试通常即可成功。此前 pi-ai 对未知 finish reason 直接抛错，一次瞬时故障就终止整轮对话。
+提交：本次提交。
+文件：`packages/llm/llm-pi-ai/src/stream.ts`、`packages/llm/llm-pi-ai/tests/convert.spec.ts`、`patches/@earendil-works__pi-ai@1.3.0.patch`、`apps/desktop/scripts/runtime-patch-policy.ts`、`packages/llm/llm-pi-ai/README.md`、`packages/llm/llm-pi-ai/README.zh.md`、`packages/llm/llm-pi-ai/README.i18n.yaml`。
+同步注意：upstream 重写 `classifyPiAiError` 或换 pi-ai 版本时按本条重放分类正则与 patch hunk；若 pi-ai 新版本自己把未知 finish reason 归为可重试错误，删除 patch 部分并核对分类正则是否仍需要。判定只看消息文本，`SAFETY` 等确定性终止不得进入该分支。

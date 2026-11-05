@@ -22,6 +22,20 @@ index 6ec62d0..abe5eee 100644
          stream.push({ type: "toolcall_delta", contentIndex: index, delta: delta.toolUse.input || "", partial: output });
      }
      else if (delta?.reasoningContent) {
+diff --git a/dist/api/google-shared.js b/dist/api/google-shared.js
+--- a/dist/api/google-shared.js
++++ b/dist/api/google-shared.js
+@@ -406,8 +406,8 @@ export function mapStopReason(reason) {
+         case FinishReason.NO_IMAGE:
+             return "error";
+         default: {
+-            const _exhaustive = reason;
+-            throw new Error(`Unhandled stop reason: ${_exhaustive}`);
++            // Provider-side failure, not an internal defect: keep the stream.
++            return "error";
+         }
+     }
+ }
 diff --git a/dist/api/mistral-conversations.js b/dist/api/mistral-conversations.js
 index 9038a1c..afda5ea 100644
 --- a/dist/api/mistral-conversations.js

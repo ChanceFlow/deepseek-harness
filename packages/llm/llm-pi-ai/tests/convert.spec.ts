@@ -938,6 +938,21 @@ describe('mapStopReason / mapUsage', () => {
     }))).toMatchObject({ kind: 'error', failure: { code: 'PI_AI_ERROR' } })
   })
 
+  it('retries a malformed provider generation but not a safety stop', () => {
+    // Gemini's MALFORMED_RESPONSE reaches this classifier as a known terminal
+    // reason after the adapter patch and as an unclassified one without it;
+    // both describe the provider's generation, so both are retryable.
+    for (const errorMessage of [
+      'Provider stopped with: MALFORMED_RESPONSE',
+      'Unhandled stop reason: MALFORMED_RESPONSE',
+    ]) {
+      expect(mapStopReason(assistant({ stopReason: 'error', errorMessage })))
+        .toMatchObject({ kind: 'error', failure: { code: 'SERVER' } })
+    }
+    expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'Provider stopped with: SAFETY' })))
+      .toMatchObject({ kind: 'error', failure: { code: 'PI_AI_ERROR' } })
+  })
+
   it.each([
     'other side closed',
     'HTTP2 request did not get a response',

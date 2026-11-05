@@ -47,6 +47,13 @@ function classifyPiAiError(message: string): string {
   // same request cannot succeed, so it is invalid, not transient.
   if (/\b413\b|failed to buffer the request body:\s*length limit exceeded|payload too large|request body too large/i.test(message)) return 'INVALID_REQUEST'
   if (/\b400\b|invalid.?request/i.test(message)) return 'INVALID_REQUEST'
+  // A provider-reported malformed generation — Gemini reports it as the
+  // `MALFORMED_RESPONSE` finish reason, surfaced by pi-ai as either a terminal
+  // stop reason or an unclassified one — is provider-side and usually
+  // transient: the request was accepted, so the step is safe to retry. Safety
+  // and content-filter stops keep `PI_AI_ERROR`, because a retry cannot change
+  // their deterministic outcome.
+  if (/^(?:provider stopped with|unhandled stop reason):\s*malformed_response\b/i.test(message)) return 'SERVER'
   if (/\b5\d\d\b/.test(message)) return 'SERVER'
   if (/\btime(?:d)?\s*out\b|timeout/i.test(message)) return 'TIMEOUT'
   // A stream truncated before the provider's terminal event: each pi-ai provider
