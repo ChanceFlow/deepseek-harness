@@ -74,6 +74,11 @@ jobs:
       - name: Checkout the released tag and restart staging
         run: |
           export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
+          # A tag checkout invalidates the incremental client build, and rebuilding
+          # every referenced project exceeds Node's default ~2 GiB heap: tsc -b
+          # aborted with "Ineffective mark-compacts near heap limit" on the
+          # 0.2.2-rc.1 release. Give both faces room before building.
+          export NODE_OPTIONS=--max-old-space-size=8192
           cd /home/<user>/Projects/deepseek-harness
           git fetch origin --tags --prune
           git checkout --force "refs/tags/$TAG"
