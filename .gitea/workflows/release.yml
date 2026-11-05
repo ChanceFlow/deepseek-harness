@@ -53,6 +53,10 @@ jobs:
       - name: Pack
         run: pnpm run release:pack --family dsh --out dist/npm-release
       - name: Publish to the fork registry
+        # No macOS signing runner publishes here; the CUA provider ships from
+        # sources only, so its notarized helper payload is not verified.
+        env:
+          DSH_RELEASE_CUA_PAYLOAD: source-only
         run: pnpm run release:publish --family dsh --from dist/npm-release
       - name: Point the latest dist-tag at every member
         run: |

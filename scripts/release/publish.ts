@@ -186,9 +186,14 @@ export async function publishRelease(familyId: string, directory: string, distTa
     const tarball = join(directory, filename)
     return { tarball, ...packedIdentity(tarball) }
   })
-  for (const member of order) {
-    if (member.name !== '@deepseek-ai/dsh-experimental-cua-macos') continue
-    await verifyCuaHelperTarball(member.tarball, { sourceDigest: cuaHelperSourceDigest(resolve(import.meta.dirname, '../..')) })
+  // The fork publishes the CUA provider from sources only: the notarized macOS
+  // helper is built by upstream's macOS CI, and this repository has no signing
+  // runner. DIFF.md D14 owns the difference.
+  if (process.env.DSH_RELEASE_CUA_PAYLOAD !== 'source-only') {
+    for (const member of order) {
+      if (member.name !== '@deepseek-ai/dsh-experimental-cua-macos') continue
+      await verifyCuaHelperTarball(member.tarball, { sourceDigest: cuaHelperSourceDigest(resolve(import.meta.dirname, '../..')) })
+    }
   }
   if (distTag !== undefined) {
     for (const member of order) verifyDistTag(member, distTag)

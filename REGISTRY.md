@@ -57,3 +57,7 @@ http://<gitea-host>:3000/ChanceFlow/-/packages
 ```
 
 安装时 npm 自动校验 tarball 的 sha512 与 registry 记录的 `dist.integrity` 一致，传输篡改会直接报错；选对版本（dist-tag 或精确号）是使用者的主要鉴别动作。
+
+## chance 构建的差异
+
+chance 构建按 fork 的差异登记簿（`DIFF.md`，只在 fork 仓库维护）发布。与 upstream 同名版本的主要差异：`@deepseek-ai/dsh-experimental-cua-macos` 只带 provider 源码，不含公证的 Computer Use helper——公证产物由 upstream 的 macOS 签名 CI 构建，fork 没有该 runner，因此使用 CUA 的机器需要自行构建 helper。其余包与 upstream 同名版本内容一致。
