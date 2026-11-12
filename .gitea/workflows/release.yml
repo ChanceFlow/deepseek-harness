@@ -117,14 +117,17 @@ jobs:
             sleep 2
           done
           if [ -n "$url" ]; then
-            # The banner is printed before the static handler answers; retry
-            # instead of failing on the first transient 5xx while booting.
+            # The token exchange answers 303 with the browser cookie; follow it
+            # with a cookie jar and require the authenticated page itself. Retry
+            # so the probe tolerates the handler settling after the banner.
+            jar=$(mktemp)
             code=000
             for _ in $(seq 1 30); do
-              code=$(curl -s --noproxy '*' -o /dev/null -w '%{http_code}' "$url")
+              code=$(curl -s -L -c "$jar" -b "$jar" --noproxy '*' -o /dev/null -w '%{http_code}' "$url")
               if [ "$code" = 200 ]; then break; fi
               sleep 2
             done
+            rm -f "$jar"
             echo "staging authenticated probe: $code"
             test "$code" = 200
           else
