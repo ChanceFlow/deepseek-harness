@@ -110,8 +110,10 @@ jobs:
           LOG=$HOME/services/dsh-staging/staging.log
           url=
           for _ in $(seq 1 30); do
-            url=$(grep -Eo 'https?://[^[:space:]]*token=[^[:space:]]*' "$LOG" 2>/dev/null | tail -1 || true)
-            [ -n "$url" ] && break
+            # The banner names the bind address (0.0.0.0); probe loopback directly and
+            # skip any configured proxy so the host proxy cannot answer with its 502.
+            url=$(grep -Eo 'https?://[^[:space:]]*token=[^[:space:]]*' "$LOG" 2>/dev/null | tail -1 | sed 's/0\.0\.0\.0/127.0.0.1/' || true)
+            if [ -n "$url" ]; then break; fi
             sleep 2
           done
           if [ -n "$url" ]; then
@@ -119,14 +121,14 @@ jobs:
             # instead of failing on the first transient 5xx while booting.
             code=000
             for _ in $(seq 1 30); do
-              code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
+              code=$(curl -s --noproxy '*' -o /dev/null -w '%{http_code}' "$url")
               if [ "$code" = 200 ]; then break; fi
               sleep 2
             done
             echo "staging authenticated probe: $code"
             test "$code" = 200
           else
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3081/)
+            code=$(curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://127.0.0.1:3081/)
             echo "staging unauthenticated probe: $code"
             test "$code" = 401
           fi
