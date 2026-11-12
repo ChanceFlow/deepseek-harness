@@ -115,7 +115,14 @@ jobs:
             sleep 2
           done
           if [ -n "$url" ]; then
-            code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
+            # The banner is printed before the static handler answers; retry
+            # instead of failing on the first transient 5xx while booting.
+            code=000
+            for _ in $(seq 1 30); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
+              if [ "$code" = 200 ]; then break; fi
+              sleep 2
+            done
             echo "staging authenticated probe: $code"
             test "$code" = 200
           else
