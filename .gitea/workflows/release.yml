@@ -71,7 +71,7 @@ jobs:
     env:
       TAG: ${{ gitea.ref_name }}
     steps:
-      - name: Checkout the released tag and restart staging
+      - name: Check out the released tag into the staging worktree and restart staging
         run: |
           export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
           # A tag checkout invalidates the incremental client build, and rebuilding
@@ -79,9 +79,23 @@ jobs:
           # aborted with "Ineffective mark-compacts near heap limit" on the
           # 0.2.2-rc.1 release. Give both faces room before building.
           export NODE_OPTIONS=--max-old-space-size=8192
-          cd /home/<user>/Projects/deepseek-harness
+          REPO=/home/<user>/Projects/deepseek-harness
+          STAGING=/home/<user>/Projects/deepseek-harness-staging
+          # Never check out a tag in the developer's working tree: that discards
+          # uncommitted work (the 0.2.2-rc.2 deploy did exactly that). Stage from a
+          # detached worktree dedicated to the dsh-staging service; its launcher
+          # runs from the same path.
+          cd "$REPO"
           git fetch origin --tags --prune
-          git checkout --force "refs/tags/$TAG"
+          if git worktree list --porcelain | grep -Fxq "worktree $STAGING"; then
+            git worktree remove --force "$STAGING"
+          fi
+          rm -rf "$STAGING"
+          git worktree add --force --detach "$STAGING" "refs/tags/$TAG"
+          # The fork registry routing and token live in the checkout's gitignored
+          # .npmrc; installs in the worktree resolve @deepseek-ai through it.
+          cp "$REPO/.npmrc" "$STAGING/.npmrc"
+          cd "$STAGING"
           pnpm install --frozen-lockfile
           # The source launch serves the checkout's built client bundles, and
           # the web frontend imports their exported assets: build both faces
@@ -91,3 +105,21 @@ jobs:
           pnpm run build:web
           systemctl --user restart dsh-staging
           systemctl --user is-active dsh-staging
+          # Probe staging with the process launch token the service writes to its
+          # log, so a broken build fails the release instead of staying green.
+          LOG=$HOME/services/dsh-staging/staging.log
+          url=
+          for _ in $(seq 1 30); do
+            url=$(grep -Eo 'https?://[^[:space:]]*token=[^[:space:]]*' "$LOG" 2>/dev/null | tail -1 || true)
+            [ -n "$url" ] && break
+            sleep 2
+          done
+          if [ -n "$url" ]; then
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
+            echo "staging authenticated probe: $code"
+            test "$code" = 200
+          else
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3081/)
+            echo "staging unauthenticated probe: $code"
+            test "$code" = 401
+          fi
