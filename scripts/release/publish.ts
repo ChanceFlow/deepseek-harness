@@ -191,7 +191,7 @@ export async function publishRelease(familyId: string, directory: string, distTa
   // runner. DIFF.md D14 owns the difference.
   if (process.env.DSH_RELEASE_CUA_PAYLOAD !== 'source-only') {
     for (const member of order) {
-      if (member.name !== '@deepseek-ai/dsh-experimental-cua-macos') continue
+      if (member.name !== '@deepseek-ai/dsh-cua-macos') continue
       await verifyCuaHelperTarball(member.tarball, { sourceDigest: cuaHelperSourceDigest(resolve(import.meta.dirname, '../..')) })
     }
   }
